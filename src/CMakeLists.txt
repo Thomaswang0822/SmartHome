@@ -7,10 +7,20 @@
 # file(GLOB ...) or not, you will need to re-run cmake, but with an explicit
 # file list, you know beforehand why your code isn't compiling. 
 set(SmartHome_SRC
-    source_file.cpp
+    demo_device.cpp
 )
 
 # Form the full path to the source files...
 PREPEND(SmartHome_SRC)
 # ... and pass the variable to the parent scope.
 set(SmartHome_SRC ${SmartHome_SRC}  PARENT_SCOPE)
+
+# List source files for the EXECUTABLE (just the entry point)
+set(APP_SRCS
+    main.cpp
+)
+PREPEND(APP_SRCS)
+# Create the executable target.
+add_executable(SmartHomeApp ${APP_SRCS})
+# Link the executable to our internal library and its dependencies.
+target_link_libraries(SmartHomeApp PRIVATE SmartHome) # Communication point 2

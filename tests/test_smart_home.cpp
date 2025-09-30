@@ -1,1 +1,8 @@
-// Placeholder file
+// Placeholder content
+
+#include "catch.hpp"
+
+int main() {
+
+    return 0;
+}

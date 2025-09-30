@@ -35,8 +35,9 @@ endfunction(PREPEND)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/bin")
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/lib")
 
-# Find LAPACK on the system. This is mostly for demonstration.
-find_package(LAPACK REQUIRED)
+# Find packages on the system.
+find_package(Threads REQUIRED)
+# find_package(Boost REQUIRED)
 
 # Include source code and headers. This runs the CMakeLists.txt in each
 # subdirectory. These can define their own libraries, executables, etc. as targets, 
@@ -61,6 +62,8 @@ endif()
 # Add the library SmartHome as a target, with the contents of src/ and include/
 # as dependencies.
 add_library(SmartHome STATIC ${SmartHome_SRC} ${SmartHome_INC})
+# Link deps to the LIBRARY
+target_link_libraries(SmartHome PUBLIC Threads::Threads)
 
 # generator expressions are needed for the include directories, since installing 
 # headers changes the include path.
@@ -76,12 +79,17 @@ add_library(SmartHome STATIC ${SmartHome_SRC} ${SmartHome_INC})
 # CMake command handles this. $<BUILD_INTERFACE:...> and
 # $<INSTALL_INTERFACE:...> are macros whose values change depending on if we are
 # simply building the code or if we are installing it.
-target_include_directories(SmartHome PUBLIC
-   # headers to include when building from source
-   $<BUILD_INTERFACE:${SmartHome_SOURCE_DIR}/include> 
-   $<BUILD_INTERFACE:${SmartHome_BINARY_DIR}/include> 
+# So instead of:
 
-   # headers to include when installing  
-   # (implicitly prefixes with ${CMAKE_INSTALL_PREFIX}).
-   $<INSTALL_INTERFACE:include> 
-   )
+# target_include_directories(SmartHome PUBLIC
+#    # headers to include when building from source
+#    $<BUILD_INTERFACE:${SmartHome_SOURCE_DIR}/include> 
+#    $<BUILD_INTERFACE:${SmartHome_BINARY_DIR}/include> 
+
+#    # headers to include when installing  
+#    # (implicitly prefixes with ${CMAKE_INSTALL_PREFIX}).
+#    $<INSTALL_INTERFACE:include> 
+#    )
+
+# Make the ./include directory publicly available to anyone using the SmartHome library
+target_include_directories(SmartHome PUBLIC include)
