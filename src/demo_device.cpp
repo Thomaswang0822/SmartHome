@@ -4,7 +4,6 @@
 
 #include <iostream>
 
-void DemoDevice::Operate()
-{
+void DemoDevice::Operate() {
     std::cout << "I am a " << this->GetName() << " and I do NOTHING!" << std::endl;
 }

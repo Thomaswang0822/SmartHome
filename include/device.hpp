@@ -5,9 +5,7 @@
 class Device {
 public:
     Device(std::string name) : m_name(name) {};
-    std::string GetName() const {
-        return m_name;
-    }
+    std::string GetName() const { return m_name; }
     virtual void Operate() = 0;
 
 private:
@@ -21,5 +19,4 @@ public:
     void Operate() override;
 
 private:
-
 };

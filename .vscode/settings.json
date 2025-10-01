@@ -1,0 +1,17 @@
+{
+    // Enable format on save
+    "editor.formatOnSave": true,
+    // Use clang-format as default formatter for C/C++
+    "[cpp]": {
+        "editor.defaultFormatter": "xaver.clang-format"
+    },
+    "[c]": {
+        "editor.defaultFormatter": "xaver.clang-format"
+    },
+    // Point to your clang-format executable
+    "clang-format.executable": "/opt/homebrew/bin/clang-format", // M-chip path
+    // Always use your .clang-format config
+    "clang-format.style": "file",
+    // Optional: Fallback to LLVM style if no config found
+    "clang-format.fallbackStyle": "LLVM"
+}
