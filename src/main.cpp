@@ -1,7 +1,8 @@
-#include "device.h"
+#include "device.hpp"
 
 #include <iostream>
 #include <numeric>
+#include <range/v3/view/enumerate.hpp>
 #include <ranges>
 #include <vector>
 
@@ -13,8 +14,9 @@ int main() {
     std::iota(vec_ids.begin(), vec_ids.end(), 0);
 
     for (auto id : vec_ids) {
-        std::cout << id << std::endl;
+        std::cout << id << "  ";
     }
+    std::cout << std::endl;
 
     std::vector<std::shared_ptr<DemoDevice>> vec_devices;
     /// C++ equivalent of Python [ DemoDevice(i) for i in range(N) ]
@@ -27,9 +29,20 @@ int main() {
         } // transform function
     );
 
-    for (auto& dev : vec_devices) {
-        dev->Operate();
+#ifdef __cpp_lib_ranges_enumerate
+    for (const auto& [index, device] : vec_devices | std::views::enumerate) {
+        device->Operate(index % 2);
     }
+    std::cout << "std::views::enumerate supported! Value: " << __cpp_lib_ranges_enumerate << "\n";
+#else
+    std::cout << "std::views::enumerate() NOT supported\n";
+    std::cout << "We will use range-v3 instead.\n";
+
+    const auto op_count = static_cast<uint32_t>(DemoDevice::DemoOpId::COUNT);
+    for (const auto& [index, device] : vec_devices | ranges::views::enumerate) {
+        device->Operate(index % op_count);
+    }
+#endif
 
     return 0;
 }

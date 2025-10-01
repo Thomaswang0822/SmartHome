@@ -9,7 +9,8 @@ cmake_minimum_required(VERSION 3.25)
 # target-specific manner, using:
 #   set_target_properties(foo PROPERTIES CXX_STANDARD 11)
 # for a target foo
-set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD 23)
+set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
 
 # Set the project name and version number. This allows for a user of your
 # library or tool to specify a particular version when they include it, as in 
@@ -37,6 +38,7 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/lib")
 
 # Find packages on the system.
 find_package(Threads REQUIRED)
+find_package(range-v3 REQUIRED)
 # find_package(Boost REQUIRED)
 
 # Include source code and headers. This runs the CMakeLists.txt in each
@@ -63,7 +65,10 @@ endif()
 # as dependencies.
 add_library(SmartHome STATIC ${SmartHome_SRC} ${SmartHome_INC})
 # Link deps to the LIBRARY
-target_link_libraries(SmartHome PUBLIC Threads::Threads)
+target_link_libraries(SmartHome PUBLIC 
+    Threads::Threads
+    range-v3::range-v3
+)
 
 # generator expressions are needed for the include directories, since installing 
 # headers changes the include path.

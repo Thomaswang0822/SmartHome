@@ -1,5 +1,6 @@
 cmake_minimum_required(VERSION 3.25)
-set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD 23)
+set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
 
 # Explicitly list the test source code and headers. The Catch header-only unit
 # test framework is stored in with the test source.
