@@ -34,7 +34,7 @@ endfunction(PREPEND)
 # build. We put executables and static libraries outside the build directory in
 # bin/ and lib/, respectively.
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/bin")
-set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/lib")
+# set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/lib")
 
 # Find packages on the system.
 find_package(Threads REQUIRED)
@@ -96,5 +96,10 @@ target_link_libraries(SmartHome PUBLIC
 #    $<INSTALL_INTERFACE:include> 
 #    )
 
-# Make the ./include directory publicly available to anyone using the SmartHome library
-target_include_directories(SmartHome PUBLIC include)
+add_compile_definitions(MAGIC_ENUM_DEFAULT_ENABLE_ENUM_FORMAT=1)
+
+# Make ./include and ./lib publicly available to anyone using the SmartHome library
+target_include_directories(SmartHome PUBLIC 
+    include
+    ${CMAKE_CURRENT_SOURCE_DIR}/lib
+)

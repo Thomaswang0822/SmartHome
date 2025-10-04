@@ -6,35 +6,49 @@
 #include <format>
 #include <iostream>
 
-void DemoDevice::Operate(uint32_t op_id) {
-    switch (static_cast<DemoOpId>(op_id)) {
-    case DemoOpId::eHello:
+void Device::HackName(std::string newName) {
+    // Hack the name from the beginning
+    m_name.replace(0, newName.length(), newName);
+    std::cout << "I got hacked and become " << GetName() << std::endl;
+}
+
+void DemoDevice::Operate(std::shared_ptr<DeviceData> data) {
+    if (data == nullptr || !m_on)
+        return;
+
+    switch (data->op_id) {
+    case DeviceOpId::eHello:
         std::cout << this->Hello() << std::endl;
         break;
-    case DemoOpId::eSing:
+    case DeviceOpId::eSing:
         this->Sing();
         break;
     default:
-        // DemoOpId::eDefault
-        std::cout << "I am a " << this->GetName() << " and I do NOTHING!" << std::endl;
+        // DeviceOpId::eDefault
+        Device::Operate();
         break;
     }
     return;
 }
 
-void DemoDevice::Malfunction(uint32_t mf_id) {
-    switch (static_cast<MalfuncId>(mf_id)) {
-    case MalfuncId::eLowBattery:
+void DemoDevice::Malfunction(std::shared_ptr<DeviceData> data) {
+    if (data == nullptr || !m_on)
+        return;
+
+    switch (data->mf_id) {
+    case DeviceMfId::eLowBattery:
         m_on = false;
         break;
-    case MalfuncId::eHacked:
+    case DeviceMfId::eHacked:
         // replace "Demo" with "Evil"
         HackName("Evil");
         break;
-    case MalfuncId::eBroken:
+    case DeviceMfId::eBroken:
         std::cout << GetName() << " is broken!" << std::endl;
         break;
     default:
+        // eNormal
+        Device::Malfunction();
         break;
     }
 }
@@ -51,10 +65,4 @@ std::string DemoDevice::Hello() const {
 
 void DemoDevice::Sing() const {
     std::cout << GetName() << ": 哈吉米, 哈吉米, 哈吉米, 哈吉米南北绿豆！" << std::endl;
-}
-
-void DemoDevice::HackName(std::string newName) {
-    // Hack the name from the beginning
-    m_name.replace(0, newName.length(), newName);
-    std::cout << "I got hacked and become " << GetName() << std::endl;
 }

@@ -1,8 +1,8 @@
 build
 bin
-lib
 
 .vs
-# .vscode
+# no ignore because we want launch.json (for debug launch) and settings.json (for auto clang-format)
+.vscode
 .cache
 .DS_store

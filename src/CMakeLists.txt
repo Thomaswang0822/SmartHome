@@ -8,6 +8,7 @@
 # file list, you know beforehand why your code isn't compiling. 
 set(SmartHome_SRC
     demo_device.cpp
+    air_fryer.cpp
 )
 
 # Form the full path to the source files...

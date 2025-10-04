@@ -1,5 +1,10 @@
 #pragma once
 
+#include "device_data.hpp"
+
+#include <format>
+#include <iostream>
+#include <memory>
 #include <string>
 
 /// @brief Device base class. All devices in this project should extend from it.
@@ -17,16 +22,28 @@ public:
 
     /// @brief Simulate how the device behave when function properly
     /// @param op_id Identify which operations to be performed, because there can be many.
-    virtual void Operate(uint32_t op_id = 0) = 0;
+    virtual void Operate(std::shared_ptr<DeviceData> data = nullptr) {
+        if (data == nullptr || data->op_id == DeviceOpId::eDefault) {
+            std::cout << "I am a " << this->GetName() << " and I do NOTHING!" << std::endl;
+        }
+    }
 
     /// @brief Simulate how the device behave when function incorrectly
     /// @param mf_id Identify which operations to be performed, because there can be many.
-    virtual void Malfunction(uint32_t mf_id) = 0;
+    virtual void Malfunction(std::shared_ptr<DeviceData> data = nullptr) {
+        if (data == nullptr || data->mf_id == DeviceMfId::eNormal) {
+            std::cout << std::format("Philosophical question from {}: ", GetName())
+                      << "If I run normally while malfunction, do I run correctly or incorrectly?"
+                      << std::endl;
+        }
+    }
 
     virtual ~Device() = default;
 
 protected:
     std::string m_name;
+
+    void HackName(std::string newName);
 };
 
 /// @brief A "better" placeholder class to demo
@@ -36,26 +53,9 @@ public:
     DemoDevice(std::string name) : Device(name), m_on(true) {};
     /// @brief Operate() overridden by DemoDevice
     /// @param op_id Identify which operations to be performed, because there can be many.
-    void Operate(uint32_t op_id = 0) override;
+    void Operate(std::shared_ptr<DeviceData> data) override;
 
-    void Malfunction(uint32_t mf_id) override;
-
-    /// @brief Different normal operations of DemoDevice
-    enum class DemoOpId : uint32_t {
-        eDefault = 0,
-        eHello = 1,
-        eSing = 2,
-
-        COUNT,
-    };
-
-    enum class MalfuncId : uint32_t {
-        eLowBattery = 0,
-        eHacked = 1,
-        eBroken = 2,
-
-        COUNT,
-    };
+    void Malfunction(std::shared_ptr<DeviceData> data) override;
 
 private:
     // All normal operations
@@ -63,7 +63,6 @@ private:
     void Sing() const;
 
     // All malfunctions
-    void HackName(std::string newName);
 
     // Data
     bool m_on = false;

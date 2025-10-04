@@ -7,7 +7,11 @@
 # file(GLOB ...) or not, you will need to re-run cmake, but with an explicit
 # file list, you know beforehand why your code isn't compiling. 
 set(SmartHome_INC
+    utils.hpp
+    device_data.hpp
     device.hpp
+    world.hpp
+    air_fryer.hpp
 )
 
 # Form the full path to the source files...

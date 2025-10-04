@@ -61,3 +61,17 @@ Also, try to achieve Python-style `for i, item in enumerate(listA):`
 First I tried `std::views::enumerate` but it's not supported even after C++23 is turned on. This is confirmed by `#ifdef __cpp_lib_ranges_enumerate`.
 
 Then I achieve the goal with `ranges::views::enumerate` from lib **range-v3**, which works the same way.
+
+## Step 4: Real AirFryer Class & Unified `DeviceData`
+
+Commit: **TODO**
+
+`DeviceData` is a unified data stroage class for ALL device types, used as `std::shared_ptr` for both input and output.
+It has general-purpose data of each common types: `int`, `float`, `string`, `bool`. For example, the `int dint` can represent cook time in milisecond for `AirFryer::Cook()` or target temperature for `AirConditioner::setTemp()`. Other data have specific purpose, like operation success flag.
+
+Also, we group all Operate enum and Malfunction enum into 2 unified enum class `DeviceOpId` and `DeviceMfId`.
+
+Other small additions
+
+- add static 3rd-party lib **magic_enum** to print enum class
+- define a custom `DEBUG_ASSERT` that enables formated message.
