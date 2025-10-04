@@ -12,7 +12,7 @@ For now there isn't any non-trivial adaptation: we simply replace their project 
 
 ## Step 2: CMake Revision and Modern (C++ 20) Features
 
-Commit: **79cabd3**
+Commit: **03c5639**
 
 The original template was designed for a library-like project: files are compiled, "installed", and ready to be used in another project. What we have is a traditional single-executable project with no shipping need for now.
 
@@ -22,7 +22,7 @@ Also, I learned and played with `std::iota()` and `std::ranges::transform()`. Ho
 
 ## Step 3: Device class Design & `enumerate()`
 
-Commit: **3ba191f**
+Commit: **0a7934f**
 
 Turn the `Operate()` function to multi-purpose:
 
