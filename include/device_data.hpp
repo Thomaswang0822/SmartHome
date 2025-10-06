@@ -12,6 +12,10 @@ enum class DeviceOpId : uint32_t {
     // for AirFryer
     eAirFryerCook = 3,
     eAirFryerClean = 4,
+    // for WashDryer
+    eWashDryerCombo = 5,
+    eWashDryerWashOnly = 6,
+    eWashDryerDryOnly = 7,
 
     COUNT,
 };

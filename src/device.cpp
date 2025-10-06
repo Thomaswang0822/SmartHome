@@ -6,10 +6,10 @@
 #include <format>
 #include <iostream>
 
-void Device::HackName(std::string newName) {
+void Device::HackName(std::string newName, size_t len) {
     // Hack the name from the beginning
-    m_name.replace(0, newName.length(), newName);
-    std::cout << "I got hacked and become " << GetName() << std::endl;
+    m_name.replace(0, len, newName);
+    std::cerr << "I got hacked and become " << GetName() << std::endl;
 }
 
 void DemoDevice::Operate(std::shared_ptr<DeviceData> data) {
@@ -18,10 +18,10 @@ void DemoDevice::Operate(std::shared_ptr<DeviceData> data) {
 
     switch (data->op_id) {
     case DeviceOpId::eHello:
-        std::cout << this->Hello() << std::endl;
+        data->dstring = this->Hello();
         break;
     case DeviceOpId::eSing:
-        this->Sing();
+        data->dstring = this->Sing();
         break;
     default:
         // DeviceOpId::eDefault
@@ -41,10 +41,10 @@ void DemoDevice::Malfunction(std::shared_ptr<DeviceData> data) {
         break;
     case DeviceMfId::eHacked:
         // replace "Demo" with "Evil"
-        HackName("Evil");
+        HackName("Evil", 4);
         break;
     case DeviceMfId::eBroken:
-        std::cout << GetName() << " is broken!" << std::endl;
+        std::cerr << GetName() << " is broken!" << std::endl;
         break;
     default:
         // eNormal
@@ -55,14 +55,11 @@ void DemoDevice::Malfunction(std::shared_ptr<DeviceData> data) {
 
 std::string DemoDevice::Hello() const {
     // std::format doesn't accept high_resolution_clock as it's not intended for display
-    const std::string message = std::format(
+    return std::format(
         "Hello World! This is device {}, greeting at {}!",
         GetName(),
         std::chrono::system_clock::now()
     );
-    return message;
 }
 
-void DemoDevice::Sing() const {
-    std::cout << GetName() << ": 哈吉米, 哈吉米, 哈吉米, 哈吉米南北绿豆！" << std::endl;
-}
+std::string DemoDevice::Sing() const { return "哈吉米, 哈吉米, 哈吉米, 哈吉米南北绿豆！"; }

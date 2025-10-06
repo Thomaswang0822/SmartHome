@@ -7,8 +7,9 @@
 # file(GLOB ...) or not, you will need to re-run cmake, but with an explicit
 # file list, you know beforehand why your code isn't compiling. 
 set(SmartHome_SRC
-    demo_device.cpp
+    device.cpp
     air_fryer.cpp
+    washer_dryer.cpp
 )
 
 # Form the full path to the source files...

@@ -3,6 +3,6 @@ bin
 
 .vs
 # no ignore because we want launch.json (for debug launch) and settings.json (for auto clang-format)
-.vscode
+# .vscode
 .cache
 .DS_store

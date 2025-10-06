@@ -64,14 +64,37 @@ Then I achieve the goal with `ranges::views::enumerate` from lib **range-v3**, w
 
 ## Step 4: Real AirFryer Class & Unified `DeviceData`
 
-Commit: **TODO**
+Commit: **811a5f1**
 
 `DeviceData` is a unified data stroage class for ALL device types, used as `std::shared_ptr` for both input and output.
-It has general-purpose data of each common types: `int`, `float`, `string`, `bool`. For example, the `int dint` can represent cook time in milisecond for `AirFryer::Cook()` or target temperature for `AirConditioner::setTemp()`. Other data have specific purpose, like operation success flag.
+It has general-purpose data of each common types: `int`, `float`, `string`, `bool`. For example, the `int dint` can represent cook time in second for `AirFryer::Cook()` or target temperature for `AirConditioner::setTemp()`. Other data have specific purpose, like operation success flag.
 
 Also, we group all Operate enum and Malfunction enum into 2 unified enum class `DeviceOpId` and `DeviceMfId`.
 
 Other small additions
 
 - add static 3rd-party lib **magic_enum** to print enum class
-- define a custom `DEBUG_ASSERT` that enables formated message.
+- define a custom `Debug::Assert` that enables formated message.
+
+## Step 5. Real WasherDryer Class & Async Enabled by Timer
+
+Commit: **TODO**
+
+```cpp
+/// @brief A FIFO async Washer-Dryer twin.
+/// Unlike AirFryer, WashDryer should act atomically:
+/// User should NOT be able to add or take out cloth in the middle.
+///
+/// "Async" in the sense that `Operate()` only submits the wash/dry job and returns immediately.
+/// `FinishAll()` should be called to really execute all waiting cloth in the bin when properly.
+class WasherDryer : public Device {
+    // Implementation
+};
+```
+
+The atomic asynchronicity is achieved with the helper struct `Timer`, a reusable time check that does NOT simulate time elapsing.
+i.e. it computes non-negative remaining time `total_time - (now - start_time)`. When submitting a wash/dry job, unless it's the first submission, a previously submitted job would take up the washer/dryer. We simulate the remaining time from `Timer` and mark it as completed, before submitting the current job to bin, a `std::deque` of `DeviceData` shared pointer.
+
+We used multi-slot `std::deque` instead of single-slot `DeviceData` because later we want to enable multi-threading. i.e. the `SmartManager` may submit several jobs simultaneously.
+
+Also, I gave a try to **range-v3** `ranges::views::zip()`, which is an alternaive of `std::views::zip()`.

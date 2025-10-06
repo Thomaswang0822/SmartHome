@@ -5,31 +5,29 @@
 
 #include <assert.h>
 
+/// @brief TODO: Add "AirFryer Concurrency":
+/// 0  min: add fish that takes 20 mins;
+/// 5  min: add chicken wings that takes 10 mins;
+/// 15 min: chicken wings ready;
+/// 20 min: fish ready;
 class AirFryer : public Device {
 public:
     /// @brief
     /// @param volume How big is the AirFryer in liter.
-    AirFryer(float volume = 5.f)
-        : Device("Air Fryer " + std::to_string(s_count++)), m_on(true), k_total_volume(volume),
-          m_volume(volume) {};
-    AirFryer(std::shared_ptr<DeviceData> data) : Device("Air Fryer") {
-        if (data == nullptr) {
-            AirFryer();
-        } else {
-            AirFryer(data->dfloat);
-        }
-    }
-    ~AirFryer() { s_count--; }
+    AirFryer(float volume = 5.f) : Device("AirFryer"), k_total_volume(volume), m_volume(volume) {};
+    /// @brief
+    /// @param data Should store `k_total_volume = m_volume` in `data->dfloat`
+    AirFryer(std::shared_ptr<DeviceData> data)
+        : Device("Air Fryer"), k_total_volume(data->dfloat), m_volume(data->dfloat) {}
+    ~AirFryer() = default;
 
     void Operate(std::shared_ptr<DeviceData> data) override;
     void Malfunction(std::shared_ptr<DeviceData> data) override;
 
 private:
     // Data
-    bool m_on = false;
-    float k_total_volume;
+    const float k_total_volume;
     float m_volume;
-    inline static uint32_t s_count = 0;
 
     // Functions
     void Cook(std::shared_ptr<DeviceData> data);

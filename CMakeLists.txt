@@ -10,7 +10,7 @@ cmake_minimum_required(VERSION 3.25)
 #   set_target_properties(foo PROPERTIES CXX_STANDARD 11)
 # for a target foo
 set(CMAKE_CXX_STANDARD 23)
-set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Set the project name and version number. This allows for a user of your
 # library or tool to specify a particular version when they include it, as in 
