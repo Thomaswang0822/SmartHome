@@ -17,10 +17,10 @@ public:
         : Device("WasherDryer"), k_total_volume(data->dfloat) {}
     ~WasherDryer() = default;
 
-    void Operate(std::shared_ptr<DeviceData> data) override;
-    void Malfunction(std::shared_ptr<DeviceData> data) override;
+    void operate(std::shared_ptr<DeviceData> data) ;
+    void malfunction(std::shared_ptr<DeviceData> data) ;
 
-    void FinishAll();
+    void finishAll();
 
 private:
     // a natural design for both having same volume
@@ -36,10 +36,10 @@ private:
     /// 3. [if wash just finished is a wash-dry combo] submit to dryer.
     /// 4. submit input wash.
     /// @param data NOTE: `data->success` stores result of itself, not of finished previous wash.
-    void Wash(std::shared_ptr<DeviceData> data);
+    void wash(std::shared_ptr<DeviceData> data);
 
     /// @brief Async Dry operation, works the same as `Wash()` except for step 3.
-    void Dry(std::shared_ptr<DeviceData> data);
+    void dry(std::shared_ptr<DeviceData> data);
 
-    void PerformNext(bool is_wash);
+    void performNext(bool is_wash);
 };

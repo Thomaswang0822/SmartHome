@@ -2,29 +2,29 @@
 #include <thread>
 #include <utils.hpp>
 
-void WasherDryer::Operate(std::shared_ptr<DeviceData> data) {
+void WasherDryer::operate(std::shared_ptr<DeviceData> data) {
     if (data == nullptr || !m_on)
         return;
 
     switch (data->op_id) {
     case DeviceOpId::eWashDryerCombo:
         // auto call Dry() after Wash() finishes
-        Wash(data);
+        wash(data);
         break;
     case DeviceOpId::eWashDryerWashOnly:
-        Wash(data);
+        wash(data);
         break;
     case DeviceOpId::eWashDryerDryOnly:
-        Dry(data);
+        dry(data);
         break;
     default:
-        Device::Operate();
-        data->LogOpId();
+        Device::operate();
+        data->logOpId();
         break;
     }
 }
 
-void WasherDryer::Malfunction(std::shared_ptr<DeviceData> data) {
+void WasherDryer::malfunction(std::shared_ptr<DeviceData> data) {
     if (data == nullptr || !m_on)
         return;
 
@@ -34,32 +34,32 @@ void WasherDryer::Malfunction(std::shared_ptr<DeviceData> data) {
         break;
     case DeviceMfId::eHacked: {
         // replace "WasherDryer" with LuffyAce?
-        std::string hackName = data->dstring == "" ? "LuffyAce" : data->dstring;
-        HackName(hackName, 11);
+        std::string hack_name = data->dstring == "" ? "LuffyAce" : data->dstring;
+        ::WasherDryer::hackName(hack_name, 11);
         break;
     }
     case DeviceMfId::eBroken:
-        std::cout << GetName() << " are leaking! See if Super Mario can help!" << std::endl;
+        std::cout << getName() << " are leaking! See if Super Mario can help!" << std::endl;
         break;
     default:
         // eNormal
-        Device::Malfunction();
+        Device::malfunction();
         break;
     }
 }
 
-void WasherDryer::FinishAll() {
+void WasherDryer::finishAll() {
     while (!m_wash_bin.empty()) {
-        PerformNext(true);
+        performNext(true);
     }
 
     while (!m_dry_bin.empty()) {
-        PerformNext(false);
+        performNext(false);
     }
 }
 
-void WasherDryer::Wash(std::shared_ptr<DeviceData> data) {
-    Debug::Assert(data != nullptr, "caller Operate() should filter out nullptr input");
+void WasherDryer::wash(std::shared_ptr<DeviceData> data) {
+    Debug::logAssert(data != nullptr, "caller Operate() should filter out nullptr input");
 
     if (data->dfloat > k_total_volume) {
         data->dstring = std::format(
@@ -75,16 +75,16 @@ void WasherDryer::Wash(std::shared_ptr<DeviceData> data) {
 
     if (m_wash_timer.running) {
         // Every non-0th-submission goes here
-        PerformNext(true /* is_wash */);
+        performNext(true /* is_wash */);
     }
     // before submitting the next wash
-    Debug::Assert(!m_wash_bin.empty(), "m_wash_bin should not be empty");
-    Debug::Assert(!m_wash_timer.running, "m_wash_timer should not be running");
-    m_wash_timer.Begin(data->dint);
+    Debug::logAssert(!m_wash_bin.empty(), "m_wash_bin should not be empty");
+    Debug::logAssert(!m_wash_timer.running, "m_wash_timer should not be running");
+    m_wash_timer.begin(data->dint);
 }
 
-void WasherDryer::Dry(std::shared_ptr<DeviceData> data) {
-    Debug::Assert(data != nullptr, "caller Operate() should filter out nullptr input");
+void WasherDryer::dry(std::shared_ptr<DeviceData> data) {
+    Debug::logAssert(data != nullptr, "caller Operate() should filter out nullptr input");
 
     if (data->dfloat > k_total_volume) {
         data->dstring = std::format(
@@ -100,38 +100,38 @@ void WasherDryer::Dry(std::shared_ptr<DeviceData> data) {
 
     if (m_dry_timer.running) {
         // Every non-0th-submission goes here
-        PerformNext(false /* is_wash */);
+        performNext(false /* is_wash */);
     }
     // before submitting the next dry
-    Debug::Assert(!m_dry_bin.empty(), "m_dry_bin should not be empty");
-    Debug::Assert(!m_dry_timer.running, "m_dry_timer should not be running");
-    m_dry_timer.Begin(data->dint);
+    Debug::logAssert(!m_dry_bin.empty(), "m_dry_bin should not be empty");
+    Debug::logAssert(!m_dry_timer.running, "m_dry_timer should not be running");
+    m_dry_timer.begin(data->dint);
 }
 
-void WasherDryer::PerformNext(bool is_wash) {
+void WasherDryer::performNext(bool is_wash) {
     auto& timer = is_wash ? m_wash_timer : m_dry_timer;
     auto& bin = is_wash ? m_wash_bin : m_dry_bin;
 
-    if (int remaining_time = timer.CheckRemainingTime(); remaining_time > 0) {
+    if (int remaining_time = timer.checkRemainingTime(); remaining_time > 0) {
         // sim till the end of previous job first
         std::this_thread::sleep_for(std::chrono::seconds(remaining_time));
-        timer.Stop();
+        timer.stop();
     }
     // mark success and pop from bin
-    auto prevData = bin.front();
+    auto prev_data = bin.front();
     bin.pop_front();
-    prevData->success = true;
-    prevData->dstring += std::format(
-        "{} job completes after {} seconds. ", is_wash ? "Wash" : "Dry", prevData->dint
+    prev_data->success = true;
+    prev_data->dstring += std::format(
+        "{} job completes after {} seconds. ", is_wash ? "Wash" : "Dry", prev_data->dint
     );
 
     // Check if this is a wash job in a wash-dry combo
-    if (is_wash && prevData->op_id == DeviceOpId::eWashDryerCombo) {
+    if (is_wash && prev_data->op_id == DeviceOpId::eWashDryerCombo) {
         // wash success but not combo
-        prevData->success = false;
+        prev_data->success = false;
         // submit to dryer.
-        prevData->dstring +=
-            std::format("Begin dry in the combo, also take {} seconds; ", prevData->dint);
-        this->Dry(prevData);
+        prev_data->dstring +=
+            std::format("Begin dry in the combo, also take {} seconds; ", prev_data->dint);
+        dry(prev_data);
     }
 }

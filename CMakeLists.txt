@@ -41,6 +41,9 @@ find_package(Threads REQUIRED)
 find_package(range-v3 REQUIRED)
 # find_package(Boost REQUIRED)
 
+# reusable app name sticking to Don't Repeat Yourself (DRY) principle
+set(APP_TARGET_NAME "SmartHomeApp" CACHE STRING "Name of the main application target")
+
 # Include source code and headers. This runs the CMakeLists.txt in each
 # subdirectory. These can define their own libraries, executables, etc. as targets, 
 # but here we define all exportable targets in the root CMakeLists.txt.

@@ -23,6 +23,24 @@ set(APP_SRCS
 )
 PREPEND(APP_SRCS)
 # Create the executable target.
-add_executable(SmartHomeApp ${APP_SRCS})
+add_executable(${APP_TARGET_NAME} ${APP_SRCS})
+
+# To avoid being asked for TCC permissions each build
+if(APPLE)
+    find_program(CODESIGN_EXECUTABLE codesign)
+    # TODO: change this per machine
+    set(CERT_NAME "MacCodeSigning")
+    
+    if(CODESIGN_EXECUTABLE)
+        add_custom_command(TARGET ${APP_TARGET_NAME} POST_BUILD
+            COMMAND ${CODESIGN_EXECUTABLE} --force --deep -s ${CERT_NAME} "$<TARGET_FILE:${APP_TARGET_NAME}>"
+            COMMENT "Signing ${APP_TARGET_NAME} with certificate \"${CERT_NAME}\" for macOS TCC permissions"
+            VERBATIM
+        )
+    else()
+        message(WARNING "codesign not found - macOS app won't be signed")
+    endif()
+endif()
+
 # Link the executable to our internal library and its dependencies.
 target_link_libraries(SmartHomeApp PRIVATE SmartHome) # Communication point 2

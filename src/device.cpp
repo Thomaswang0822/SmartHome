@@ -6,32 +6,32 @@
 #include <format>
 #include <iostream>
 
-void Device::HackName(std::string newName, size_t len) {
+void Device::hackName(std::string newName, size_t len) {
     // Hack the name from the beginning
     m_name.replace(0, len, newName);
-    std::cerr << "I got hacked and become " << GetName() << std::endl;
+    std::cerr << "I got hacked and become " << getName() << std::endl;
 }
 
-void DemoDevice::Operate(std::shared_ptr<DeviceData> data) {
+void DemoDevice::operate(std::shared_ptr<DeviceData> data) {
     if (data == nullptr || !m_on)
         return;
 
     switch (data->op_id) {
     case DeviceOpId::eHello:
-        data->dstring = this->Hello();
+        data->dstring = hello();
         break;
     case DeviceOpId::eSing:
-        data->dstring = this->Sing();
+        data->dstring = sing();
         break;
     default:
         // DeviceOpId::eDefault
-        Device::Operate();
+        Device::operate();
         break;
     }
     return;
 }
 
-void DemoDevice::Malfunction(std::shared_ptr<DeviceData> data) {
+void DemoDevice::malfunction(std::shared_ptr<DeviceData> data) {
     if (data == nullptr || !m_on)
         return;
 
@@ -41,25 +41,25 @@ void DemoDevice::Malfunction(std::shared_ptr<DeviceData> data) {
         break;
     case DeviceMfId::eHacked:
         // replace "Demo" with "Evil"
-        HackName("Evil", 4);
+        hackName("Evil", 4);
         break;
     case DeviceMfId::eBroken:
-        std::cerr << GetName() << " is broken!" << std::endl;
+        std::cerr << getName() << " is broken!" << std::endl;
         break;
     default:
         // eNormal
-        Device::Malfunction();
+        Device::malfunction();
         break;
     }
 }
 
-std::string DemoDevice::Hello() const {
+std::string DemoDevice::hello() const {
     // std::format doesn't accept high_resolution_clock as it's not intended for display
     return std::format(
         "Hello World! This is device {}, greeting at {}!",
-        GetName(),
+        getName(),
         std::chrono::system_clock::now()
     );
 }
 
-std::string DemoDevice::Sing() const { return "哈吉米, 哈吉米, 哈吉米, 哈吉米南北绿豆！"; }
+std::string DemoDevice::sing() const { return "哈吉米, 哈吉米, 哈吉米, 哈吉米南北绿豆！"; }

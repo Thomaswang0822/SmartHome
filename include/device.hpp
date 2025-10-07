@@ -11,7 +11,7 @@
 /// @brief Timer a reusable time check that does NOT simulate time elapsing.
 struct Timer {
     Timer() = default;
-    void Begin(uint32_t total_time_sec) {
+    void begin(uint32_t total_time_sec) {
         t_total_sec = std::chrono::seconds(total_time_sec);
         t_start = std::chrono::system_clock::now();
         running = true;
@@ -24,13 +24,13 @@ struct Timer {
     ///
     /// Note that `running` bool check should be done outside.
     /// @return remaining_time Output, unit is sec.
-    int CheckRemainingTime() {
+    int checkRemainingTime() {
         using namespace std::chrono;
         if (!running) {
             // just a safe guard.
             return 0;
         } else if (duration_cast<seconds>(system_clock::now() - t_start) >= t_total_sec) {
-            Stop();
+            stop();
             return 0;
         } else {
             // can use .count() directly since we use consistent unit second.
@@ -39,7 +39,7 @@ struct Timer {
     }
 
     /// @brief Clear and set to uninitialized state, NOT pause.
-    void Stop() {
+    void stop() {
         t_total_sec = std::chrono::seconds(0);
         running = false;
     }
@@ -61,14 +61,14 @@ public:
 
     /// @brief
     /// @return device name
-    std::string GetName() const { return m_name; }
+    std::string getName() const { return m_name; }
 
-    void LogOperation(std::shared_ptr<DeviceData> data = nullptr) {
+    void logOperation(std::shared_ptr<DeviceData> data = nullptr) {
         if (data == nullptr) {
-            std::cout << std::format("Empty log by {}: I have done nothing!.\n", GetName());
+            std::cout << std::format("Empty log by {}: I have done nothing!.\n", getName());
         } else {
             std::cout << std::format(
-                "{} log by {}: {}\n", magic_enum::enum_name(data->op_id), GetName(), data->dstring
+                "{} log by {}: {}\n", magic_enum::enum_name(data->op_id), getName(), data->dstring
             );
         }
     }
@@ -77,17 +77,17 @@ public:
 
     /// @brief Simulate how the device behave when function properly
     /// @param op_id Identify which operations to be performed, because there can be many.
-    virtual void Operate(std::shared_ptr<DeviceData> data = nullptr) {
+    virtual void operate(std::shared_ptr<DeviceData> data = nullptr) {
         if (data == nullptr || data->op_id == DeviceOpId::eDefault) {
-            std::cout << "I am a " << this->GetName() << " and I do NOTHING!" << std::endl;
+            std::cout << "I am a " << this->getName() << " and I do NOTHING!" << std::endl;
         }
     }
 
     /// @brief Simulate how the device behave when function incorrectly
     /// @param mf_id Identify which operations to be performed, because there can be many.
-    virtual void Malfunction(std::shared_ptr<DeviceData> data = nullptr) {
+    virtual void malfunction(std::shared_ptr<DeviceData> data = nullptr) {
         if (data == nullptr || data->mf_id == DeviceMfId::eNormal) {
-            std::cerr << std::format("Philosophical question from {}: ", GetName())
+            std::cerr << std::format("Philosophical question from {}: ", getName())
                       << "If I run normally while malfunction, do I run correctly or incorrectly?"
                       << std::endl;
         }
@@ -108,7 +108,7 @@ protected:
     /// `E.g. "DemoDevice_1".replace(0 /* from beginning */, 4, "Bad") = "BadDevice_1";`
     /// @param newName
     /// @param len
-    void HackName(std::string newName, size_t len);
+    void hackName(std::string newName, size_t len);
 };
 
 /// @brief A "better" placeholder class to demo
@@ -118,14 +118,14 @@ public:
     DemoDevice(std::string name) : Device(name) {};
     /// @brief Operate() overridden by DemoDevice
     /// @param op_id Identify which operations to be performed, because there can be many.
-    void Operate(std::shared_ptr<DeviceData> data) override;
+    void operate(std::shared_ptr<DeviceData> data) override;
 
-    void Malfunction(std::shared_ptr<DeviceData> data) override;
+    void malfunction(std::shared_ptr<DeviceData> data) override;
 
 private:
     // All normal operations
-    std::string Hello() const;
-    std::string Sing() const;
+    std::string hello() const;
+    std::string sing() const;
 
     // All malfunctions
 

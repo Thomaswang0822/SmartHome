@@ -8,12 +8,12 @@
 #include <ranges>
 #include <vector>
 
-static constexpr size_t N = 10;
+static constexpr size_t n = 10;
 typedef std::vector<std::vector<std::shared_ptr<DeviceData>>> NestedDeviceData;
 
 /// @brief TEMP: hard-code device creation. Will be replaced by ConfigFile/Cmdline parsing.
 /// @param vec Empty vector of Device shared_ptr to be populated.
-static void PopulateDevices(std::vector<std::shared_ptr<Device>>& vec) {
+static void populateDevices(std::vector<std::shared_ptr<Device>>& vec) {
     if (!vec.empty())
         vec.clear();
 
@@ -30,7 +30,7 @@ static void PopulateDevices(std::vector<std::shared_ptr<Device>>& vec) {
 /// @brief TEMP: hard-code creation of device operation data.
 /// In reality, each data should be created on-the-fly by `SmartManager`.
 /// @param vec Empty vector of DeviceData shared_ptr to be populated.
-static void PopulateData(NestedDeviceData& vec) {
+static void populateData(NestedDeviceData& vec) {
     if (!vec.empty())
         vec.clear();
 
@@ -122,7 +122,7 @@ int main() {
     std::cout << 'C++ version could not be determined.' << std::endl;
 #endif
 
-    std::vector<uint32_t> vec_ids(N);
+    std::vector<uint32_t> vec_ids(n);
     /// C++ equivalent of Python list(range(N))
     std::iota(vec_ids.begin(), vec_ids.end(), 0);
 
@@ -133,8 +133,8 @@ int main() {
 
     std::vector<std::shared_ptr<Device>> vec_devices;
     /// C++ equivalent of Python [ DemoDevice(i) for i in range(N) ]
-    auto range_ids = std::ranges::iota_view{0u, N};
-    auto range_devices = std::ranges::transform(
+    auto range_ids = std::ranges::iota_view{0u, n};
+    std::ranges::transform(
         range_ids,                       // input
         std::back_inserter(vec_devices), // output, intially empty
         [](uint32_t id) -> std::shared_ptr<Device> {
@@ -148,7 +148,7 @@ int main() {
     /// Above is more for demo of tranditional for-loop alternative.
     /// When device type grows, this quickly becomes difficult to use.
     vec_devices.clear();
-    PopulateDevices(vec_devices);
+    populateDevices(vec_devices);
 
 #ifdef __cpp_lib_ranges_enumerate
     namespace enum_view = std::views;
@@ -182,21 +182,21 @@ int main() {
 #endif
 
     NestedDeviceData all_data;
-    PopulateData(all_data);
+    populateData(all_data);
     for (const auto [device, vdata] : zip_view::zip(vec_devices, all_data)) {
-        std::cout << std::string(20, '=') << device->GetName() << std::string(20, '=') << std::endl;
+        std::cout << std::string(20, '=') << device->getName() << std::string(20, '=') << std::endl;
         // Operate
         for (const auto d : vdata) {
-            device->Operate(d);
-            device->Malfunction(d);
+            device->operate(d);
+            device->malfunction(d);
         }
         if (auto wd = std::dynamic_pointer_cast<WasherDryer>(device)) {
-            wd->FinishAll();
+            wd->finishAll();
         }
 
         // Then Log
         for (const auto d : vdata) {
-            device->LogOperation(d);
+            device->logOperation(d);
         }
     }
 

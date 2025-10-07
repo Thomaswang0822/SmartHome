@@ -40,11 +40,11 @@ struct DeviceData {
     DeviceOpId op_id;
     DeviceMfId mf_id;
 
-    inline void LogOpId() const {
+    inline void logOpId() const {
         std::cout << "Because of unrecognized DeviceOpId::" << magic_enum::enum_name(op_id)
                   << std::endl;
     }
-    inline void LogMfId() const {
+    inline void logMfId() const {
         std::cout << "Because of unrecognized DeviceMfId::" << magic_enum::enum_name(mf_id)
                   << std::endl;
     }
