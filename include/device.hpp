@@ -1,12 +1,14 @@
 #pragma once
 
 #include "device_data.hpp"
+#include "room.hpp"
 
 #include <chrono>
 #include <format>
 #include <iostream>
 #include <memory>
 #include <string>
+#include <thread>
 
 /// @brief Timer a reusable time check that does NOT simulate time elapsing.
 struct Timer {
@@ -38,11 +40,8 @@ struct Timer {
         }
     }
 
-    /// @brief Clear and set to uninitialized state, NOT pause.
-    void stop() {
-        t_total_sec = std::chrono::seconds(0);
-        running = false;
-    }
+    /// @brief set to not running state
+    void stop() { running = false; }
 
     std::chrono::system_clock::time_point t_start;
     std::chrono::seconds t_total_sec;
@@ -50,6 +49,8 @@ struct Timer {
 };
 
 /// @brief Device base class. All devices in this project should extend from it.
+/// It makes more sense for devices to affect `Room` directly, instead of the eaiser design:
+/// `SmartManager` collects all updates and modifies the world.
 class Device {
 public:
     /// @brief Constructor
@@ -63,15 +64,24 @@ public:
     /// @return device name
     std::string getName() const { return m_name; }
 
+    std::string getCurrentTime() const {
+        return std::format("{:%T}", std::chrono::system_clock::now());
+    }
+
+    /// @brief Log what has been done in an `operate()` which is stored in `data->dstring`.
+    /// @param data
     void logOperation(std::shared_ptr<DeviceData> data = nullptr) {
         if (data == nullptr) {
-            std::cout << std::format("Empty log by {}: I have done nothing!.\n", getName());
+            std::cout << std::format("Empty log: I have done nothing at {}!\n", getCurrentTime());
         } else {
             std::cout << std::format(
-                "{} log by {}: {}\n", magic_enum::enum_name(data->op_id), getName(), data->dstring
+                "{} log: {}\n", magic_enum::enum_name(data->op_id), data->dstring
             );
         }
     }
+
+    /// @brief Should better be called before creating any Device instance.
+    static void loginRoom(std::shared_ptr<Room> room) { s_room = room; }
 
     // BEGIN virtual functions
 
@@ -81,6 +91,20 @@ public:
         if (data == nullptr || data->op_id == DeviceOpId::eDefault) {
             std::cout << "I am a " << this->getName() << " and I do NOTHING!" << std::endl;
         }
+    }
+
+    /// @brief Simulate time elapsing and update Device accordingly.
+    /// It supports partial update for Device with relevant data.
+    /// @example For `RealAC` that will open for 10s and go 25->20 degree, simulte for 6s will
+    /// result in temperature updated to 22 degree.
+    /// @example For `WasherDryer` that doesn't have "gradual" data like temperature, update is
+    /// all or nothing except for the `Timer`.
+    /// @param duration_sec If set to 0, the device should simulate till the finish of current
+    /// opeation. Otherwise it simulate for exactly `duration_sec` seconds.
+    /// @return How long we have simulated, equal to `duration_sec` if it != 0.
+    virtual uint32_t timeTravel(const uint32_t duration_sec = 0) {
+        std::this_thread::sleep_for(std::chrono::seconds(duration_sec));
+        return duration_sec;
     }
 
     /// @brief Simulate how the device behave when function incorrectly
@@ -102,6 +126,9 @@ protected:
     inline static uint32_t s_global_id = 0;
     // increment & decrement
     inline static uint32_t s_total_count = 0;
+    /// @brief static because the room should be unique, while it's shared
+    /// across all devices.
+    inline static std::shared_ptr<Room> s_room = nullptr;
 
     /// @brief A universal malfunction corresponding to DeviceMfId::eHacked,
     /// replace the first `len` char of `m_name` with `newName`.

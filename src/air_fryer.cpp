@@ -33,7 +33,7 @@ void AirFryer::malfunction(std::shared_ptr<DeviceData> data) {
         hackName("Evil", 3);
         break;
     case DeviceMfId::eBroken:
-        std::cout << getName() << " is buring! BOOM! Buy a new one!" << std::endl;
+        std::cerr << getName() << " is buring! BOOM! Buy a new one!" << std::endl;
         break;
     default:
         // eNormal
@@ -66,12 +66,13 @@ void AirFryer::cook(std::shared_ptr<DeviceData> data) {
     }
     m_volume -= food_volume;
     std::this_thread::sleep_for(std::chrono::seconds(time_sec));
-    data->dstring = std::format("completes cooking after {} seconds", time_sec);
+    data->dstring =
+        std::format("completes cooking after {} seconds at {}", time_sec, getCurrentTime());
     data->success = true;
 }
 
 void AirFryer::cleanup(std::shared_ptr<DeviceData> data) {
     m_volume = k_total_volume;
     data->success = true;
-    data->dstring = std::format("cleanup done");
+    data->dstring = std::format("cleanup done at {}", getCurrentTime());
 }

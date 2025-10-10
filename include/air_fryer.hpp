@@ -21,8 +21,8 @@ public:
         : Device("Air Fryer"), k_total_volume(data->dfloat), m_volume(data->dfloat) {}
     ~AirFryer() = default;
 
-    void operate(std::shared_ptr<DeviceData> data) ;
-    void malfunction(std::shared_ptr<DeviceData> data) ;
+    void operate(std::shared_ptr<DeviceData> data) override;
+    void malfunction(std::shared_ptr<DeviceData> data) override;
 
 private:
     // Data

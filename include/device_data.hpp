@@ -16,6 +16,9 @@ enum class DeviceOpId : uint32_t {
     eWashDryerCombo = 5,
     eWashDryerWashOnly = 6,
     eWashDryerDryOnly = 7,
+    // for RealAC
+    eRealAcOpenTillDeg = 8,
+    eRealAcOpenForMins = 9,
 
     COUNT,
 };

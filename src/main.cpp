@@ -6,9 +6,11 @@
 #include <numeric>
 #include <range/v3/view/enumerate.hpp>
 #include <ranges>
+#include <real_ac.hpp>
 #include <vector>
 
-static constexpr size_t n = 10;
+static constexpr size_t N = 10;
+static constexpr float ROOM_TEMP = 25.f;
 typedef std::vector<std::vector<std::shared_ptr<DeviceData>>> NestedDeviceData;
 
 /// @brief TEMP: hard-code device creation. Will be replaced by ConfigFile/Cmdline parsing.
@@ -25,6 +27,20 @@ static void populateDevices(std::vector<std::shared_ptr<Device>>& vec) {
     vec.push_back(std::make_shared<AirFryer>(3.0f /* volume in liter */));
 
     vec.push_back(std::make_shared<WasherDryer>(10.f /* volume in liter */));
+
+    vec.push_back(std::make_shared<RealAC>(2000 /* power in watt */));
+}
+
+static void populateTravelTimes(std::vector<uint32_t>& vec) {
+    // no override for Device, DemoDevice, or AirFryer, so 0 is no_op.
+    vec.push_back(0);
+    vec.push_back(0);
+    vec.push_back(0);
+
+    vec.push_back(10);
+
+    // For RealAC, 0 is sim to end.
+    vec.push_back(0);
 }
 
 /// @brief TEMP: hard-code creation of device operation data.
@@ -90,7 +106,7 @@ static void populateData(NestedDeviceData& vec) {
             auto data = std::make_shared<DeviceData>();
             data->op_id = DeviceOpId::eWashDryerDryOnly;
             data->mf_id = DeviceMfId::eNormal;
-            data->dint = 5;
+            data->dint = 3;
             data->dfloat = 8.0f;
             vdata.push_back(data);
         }
@@ -98,7 +114,7 @@ static void populateData(NestedDeviceData& vec) {
             auto data = std::make_shared<DeviceData>();
             data->op_id = DeviceOpId::eWashDryerWashOnly;
             data->mf_id = DeviceMfId::eNormal;
-            data->dint = 4;
+            data->dint = 5;
             data->dfloat = 9.0f;
             vdata.push_back(data);
         }
@@ -106,8 +122,37 @@ static void populateData(NestedDeviceData& vec) {
             auto data = std::make_shared<DeviceData>();
             data->op_id = DeviceOpId::eWashDryerCombo;
             data->mf_id = DeviceMfId::eHacked;
-            data->dint = 3;
+            data->dint = 7;
             data->dfloat = 10.0f;
+            vdata.push_back(data);
+        }
+        vec.push_back(vdata);
+    }
+
+    // For RealAC, float, int, bool, string are target temperature, duration (mins but actually
+    // executed in secs), heat or not, mode.
+    {
+        std::vector<std::shared_ptr<DeviceData>> vdata;
+        {
+            // 2000w in low is 500w, +3 degree needs 10 mins
+            auto data = std::make_shared<DeviceData>();
+            data->op_id = DeviceOpId::eRealAcOpenTillDeg;
+            data->mf_id = DeviceMfId::eNormal;
+            // data->dint = 10;
+            data->dfloat = ROOM_TEMP + 3.0f;
+            data->dbool = true;
+            data->dstring = "eLow";
+            vdata.push_back(data);
+        }
+        {
+            // 2000w in mid is 1000w, for 5 mins, expect -= 3 degree
+            auto data = std::make_shared<DeviceData>();
+            data->op_id = DeviceOpId::eRealAcOpenForMins;
+            data->mf_id = DeviceMfId::eNormal;
+            data->dint = 5;
+            // data->dfloat = ROOM_TEMP + 3.0f;
+            data->dbool = false;
+            data->dstring = "eMid";
             vdata.push_back(data);
         }
         vec.push_back(vdata);
@@ -122,7 +167,7 @@ int main() {
     std::cout << 'C++ version could not be determined.' << std::endl;
 #endif
 
-    std::vector<uint32_t> vec_ids(n);
+    std::vector<uint32_t> vec_ids(N);
     /// C++ equivalent of Python list(range(N))
     std::iota(vec_ids.begin(), vec_ids.end(), 0);
 
@@ -131,9 +176,13 @@ int main() {
     }
     std::cout << std::endl;
 
+    // create our room first: creation in main until we implement SmartManager
+    std::shared_ptr<Room> shptr_room = std::make_shared<Room>(ROOM_TEMP);
+    Device::loginRoom(shptr_room);
+
     std::vector<std::shared_ptr<Device>> vec_devices;
     /// C++ equivalent of Python [ DemoDevice(i) for i in range(N) ]
-    auto range_ids = std::ranges::iota_view{0u, n};
+    auto range_ids = std::ranges::iota_view{0u, N};
     std::ranges::transform(
         range_ids,                       // input
         std::back_inserter(vec_devices), // output, intially empty
@@ -158,13 +207,13 @@ int main() {
     std::cout << "std::views::enumerate() NOT supported. We will use range-v3 instead.\n";
 #endif
 
-    constexpr auto op_count = static_cast<uint32_t>(DeviceOpId::COUNT);
-    constexpr auto mf_count = static_cast<uint32_t>(DeviceMfId::COUNT);
+    constexpr auto OP_COUNT = static_cast<uint32_t>(DeviceOpId::COUNT);
+    constexpr auto MF_COUNT = static_cast<uint32_t>(DeviceMfId::COUNT);
 
     auto data = std::make_shared<DeviceData>();
     for (const auto& [index, device] : vec_devices | enum_view::enumerate) {
-        data->op_id = static_cast<DeviceOpId>(index % op_count);
-        data->mf_id = static_cast<DeviceMfId>(index % mf_count);
+        data->op_id = static_cast<DeviceOpId>(index % OP_COUNT);
+        data->mf_id = static_cast<DeviceMfId>(index % MF_COUNT);
         data->dint = static_cast<int>(index); // seconds
         data->dfloat = static_cast<float>(index) + 0.1f;
 
@@ -183,15 +232,23 @@ int main() {
 
     NestedDeviceData all_data;
     populateData(all_data);
-    for (const auto [device, vdata] : zip_view::zip(vec_devices, all_data)) {
-        std::cout << std::string(20, '=') << device->getName() << std::string(20, '=') << std::endl;
+    std::vector<uint32_t> travel_times;
+    populateTravelTimes(travel_times);
+    for (const auto [device, vdata, ttime] : zip_view::zip(vec_devices, all_data, travel_times)) {
+        std::cout << std::string(20, '=')
+                  << std::format("{} at {}", device->getName(), device->getCurrentTime())
+                  << std::string(20, '=') << std::endl;
         // Operate
         for (const auto d : vdata) {
             device->operate(d);
             device->malfunction(d);
         }
+        device->timeTravel(ttime);
+        /// Here we only demo how pointer cast works. The best practice is NOT to:
+        /// define any public function particular for a derived class
+        /// then call function by pointer_cast to derived class.
         if (auto wd = std::dynamic_pointer_cast<WasherDryer>(device)) {
-            wd->finishAll();
+            wd->getCurrentTime();
         }
 
         // Then Log

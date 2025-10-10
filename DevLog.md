@@ -76,9 +76,9 @@ Other small additions
 - add static 3rd-party lib **magic_enum** to print enum class
 - define a custom `Debug::Assert` that enables formated message.
 
-## Step 5. Real WasherDryer Class & Async Enabled by Timer
+## Step 5: Real WasherDryer Class & Async Enabled by Timer
 
-Commit: **TODO**
+Commit: **28d6c27**
 
 ```cpp
 /// @brief A FIFO async Washer-Dryer twin.
@@ -98,3 +98,16 @@ i.e. it computes non-negative remaining time `total_time - (now - start_time)`. 
 We used multi-slot `std::deque` instead of single-slot `DeviceData` because later we want to enable multi-threading. i.e. the `SmartManager` may submit several jobs simultaneously.
 
 Also, I gave a try to **range-v3** `ranges::views::zip()`, which is an alternaive of `std::views::zip()`.
+
+## Step 6: RealAC & Room class, Simulation API, and Log with Time Point
+
+Commit: **TODO**
+
+`Room` is a simple class that currently only keeps track of room temperature. We store a `static shared_ptr<Room>` inside `Device` to make sure there is only a single `Room` instance, while all devices can potentially modify this instance.
+
+`RealAC` is an air conditionor that also works async, but with simpler logic than `WasherDryer`. Users can either "open for N minutes" or "open till T degree". But both are async "submission" which does not guarantee full power-on for specified minutes.
+
+We also added a new virtual function, `uint32_t timeTravel(const uint32_t duration_sec)`, that simulates elapsed time.
+It will update `Device` accordingly, which includes "partical update" of gradually changed variables like temperature.
+
+In the end, we added a `getCurrentTime()` helper to format `now()`. We use it to pin time point in the device operation log.

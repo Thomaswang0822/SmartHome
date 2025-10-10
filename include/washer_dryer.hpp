@@ -17,10 +17,9 @@ public:
         : Device("WasherDryer"), k_total_volume(data->dfloat) {}
     ~WasherDryer() = default;
 
-    void operate(std::shared_ptr<DeviceData> data) ;
-    void malfunction(std::shared_ptr<DeviceData> data) ;
-
-    void finishAll();
+    void operate(std::shared_ptr<DeviceData> data) override;
+    void malfunction(std::shared_ptr<DeviceData> data) override;
+    uint32_t timeTravel(const uint32_t duration_sec) override;
 
 private:
     // a natural design for both having same volume

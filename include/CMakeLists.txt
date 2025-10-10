@@ -12,7 +12,8 @@ set(SmartHome_INC
     device.hpp
     air_fryer.hpp
     washer_dryer.hpp
-    world.hpp
+    room.hpp
+    real_ac.hpp
 )
 
 # Form the full path to the source files...

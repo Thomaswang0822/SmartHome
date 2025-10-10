@@ -56,9 +56,7 @@ void DemoDevice::malfunction(std::shared_ptr<DeviceData> data) {
 std::string DemoDevice::hello() const {
     // std::format doesn't accept high_resolution_clock as it's not intended for display
     return std::format(
-        "Hello World! This is device {}, greeting at {}!",
-        getName(),
-        std::chrono::system_clock::now()
+        "Hello World! This is device {}, greeting at {}!", getName(), getCurrentTime()
     );
 }
 

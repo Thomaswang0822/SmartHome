@@ -10,6 +10,7 @@ set(SmartHome_SRC
     device.cpp
     air_fryer.cpp
     washer_dryer.cpp
+    real_ac.cpp
 )
 
 # Form the full path to the source files...
