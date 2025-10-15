@@ -1,5 +1,6 @@
 #include "air_fryer.hpp"
 #include "device.hpp"
+#include "smart_manager.hpp"
 #include "washer_dryer.hpp"
 
 #include <iostream>
@@ -9,6 +10,7 @@
 #include <real_ac.hpp>
 #include <vector>
 
+static constexpr bool SHOULD_DEMO = false;
 static constexpr size_t N = 10;
 static constexpr float ROOM_TEMP = 25.f;
 typedef std::vector<std::vector<std::shared_ptr<DeviceData>>> NestedDeviceData;
@@ -159,29 +161,28 @@ static void populateData(NestedDeviceData& vec) {
     }
 }
 
-int main() {
-
+static void demo() {
+    // Get C++ standard
 #if defined(__cplusplus)
     std::cout << "C++ version: " << __cplusplus << std::endl;
 #else
     std::cout << 'C++ version could not be determined.' << std::endl;
 #endif
 
+    // std::iota: C++ equivalent of Python list(range(N))
     std::vector<uint32_t> vec_ids(N);
-    /// C++ equivalent of Python list(range(N))
     std::iota(vec_ids.begin(), vec_ids.end(), 0);
-
     for (auto id : vec_ids) {
         std::cout << id << "  ";
     }
     std::cout << std::endl;
 
     // create our room first: creation in main until we implement SmartManager
-    std::shared_ptr<Room> shptr_room = std::make_shared<Room>(ROOM_TEMP);
-    Device::loginRoom(shptr_room);
+    std::shared_ptr<Room> sp_room = std::make_shared<Room>(ROOM_TEMP);
+    Device::loginRoom(sp_room);
 
+    // std::ranges::transform: C++ equivalent of Python [ DemoDevice(i) for i in range(N) ]
     std::vector<std::shared_ptr<Device>> vec_devices;
-    /// C++ equivalent of Python [ DemoDevice(i) for i in range(N) ]
     auto range_ids = std::ranges::iota_view{0u, N};
     std::ranges::transform(
         range_ids,                       // input
@@ -191,14 +192,10 @@ int main() {
                 return std::make_shared<AirFryer>();
             else
                 return std::make_shared<DemoDevice>("DemoDevice_" + std::to_string(id));
-        } // transform function
+        } // transform lambda function
     );
 
-    /// Above is more for demo of tranditional for-loop alternative.
-    /// When device type grows, this quickly becomes difficult to use.
-    vec_devices.clear();
-    populateDevices(vec_devices);
-
+    // std::views::enumerate(): C++ equivalent of Python for i, element in enumerate(listA)
 #ifdef __cpp_lib_ranges_enumerate
     namespace enum_view = std::views;
     std::cout << "std::views::enumerate() supported! Value: " << __cpp_lib_ranges_enumerate << "\n";
@@ -209,7 +206,6 @@ int main() {
 
     constexpr auto OP_COUNT = static_cast<uint32_t>(DeviceOpId::COUNT);
     constexpr auto MF_COUNT = static_cast<uint32_t>(DeviceMfId::COUNT);
-
     auto data = std::make_shared<DeviceData>();
     for (const auto& [index, device] : vec_devices | enum_view::enumerate) {
         data->op_id = static_cast<DeviceOpId>(index % OP_COUNT);
@@ -217,11 +213,12 @@ int main() {
         data->dint = static_cast<int>(index); // seconds
         data->dfloat = static_cast<float>(index) + 0.1f;
 
-        // device->Operate(data);
-        // device->Malfunction(data);
-        // std::cout << std::string(20, '=') << std::endl;
+        device->operate(data);
+        device->malfunction(data);
+        std::cout << std::string(20, '=') << std::endl;
     }
 
+    /// std::views::zip(): C++ equivalent of Python for k1, k2 in zip(listA, listB)
 #ifdef __cpp_lib_ranges_zip
     namespace zip_view = std::views;
     std::cout << "std::views::zip() supported! Value: " << __cpp_lib_ranges_zip << "\n";
@@ -234,7 +231,7 @@ int main() {
     populateData(all_data);
     std::vector<uint32_t> travel_times;
     populateTravelTimes(travel_times);
-    for (const auto [device, vdata, ttime] : zip_view::zip(vec_devices, all_data, travel_times)) {
+    for (const auto& [device, vdata, ttime] : zip_view::zip(vec_devices, all_data, travel_times)) {
         std::cout << std::string(20, '=')
                   << std::format("{} at {}", device->getName(), device->getCurrentTime())
                   << std::string(20, '=') << std::endl;
@@ -256,6 +253,46 @@ int main() {
             device->logOperation(d);
         }
     }
+}
+
+int main() {
+    if (SHOULD_DEMO)
+        demo();
+
+    // Create SmartManager and connect Room to it
+    std::shared_ptr<Room> sp_room = std::make_shared<Room>(ROOM_TEMP);
+    std::shared_ptr<SmartManager> sp_manager = std::make_shared<SmartManager>();
+    sp_manager->connectToRoom(std::move(sp_room));
+
+    // prepare data
+    std::vector<std::shared_ptr<Device>> vec_devices;
+    populateDevices(vec_devices);
+    NestedDeviceData all_data;
+    populateData(all_data);
+    std::vector<uint32_t> travel_times;
+    populateTravelTimes(travel_times);
+
+    /// std::views::zip(): C++ equivalent of Python for k1, k2 in zip(listA, listB)
+#ifdef __cpp_lib_ranges_zip
+    namespace zip_view = std::views;
+    std::cout << "std::views::zip() supported! Value: " << __cpp_lib_ranges_zip << "\n";
+#else
+    namespace zip_view = ranges::views;
+    std::cout << "std::views::zip() NOT supported. We will use range-v3 instead.\n";
+#endif
+
+    for (const auto& [device, vdata, ttime] : zip_view::zip(vec_devices, all_data, travel_times)) {
+        auto name = device->getName();
+
+        sp_manager->addDevice(std::move(device));
+        sp_manager->addMultipleData(name, std::move(vdata));
+        sp_manager->addTravleTime(name, std::move(ttime));
+
+        Debug::logAssert(device == nullptr, "device == nullptr");
+        Debug::logAssert(vdata.size() == 0, "vdata.size() == 0");
+    }
+
+    sp_manager->operate();
 
     return 0;
 }

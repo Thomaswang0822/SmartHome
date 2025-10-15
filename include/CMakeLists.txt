@@ -14,6 +14,7 @@ set(SmartHome_INC
     washer_dryer.hpp
     room.hpp
     real_ac.hpp
+    smart_manager.hpp
 )
 
 # Form the full path to the source files...

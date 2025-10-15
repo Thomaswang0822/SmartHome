@@ -11,6 +11,7 @@ set(SmartHome_SRC
     air_fryer.cpp
     washer_dryer.cpp
     real_ac.cpp
+    smart_manager.cpp
 )
 
 # Form the full path to the source files...

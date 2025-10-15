@@ -101,7 +101,7 @@ Also, I gave a try to **range-v3** `ranges::views::zip()`, which is an alternaiv
 
 ## Step 6: RealAC & Room class, Simulation API, and Log with Time Point
 
-Commit: **TODO**
+Commit: **11c48e6**
 
 `Room` is a simple class that currently only keeps track of room temperature. We store a `static shared_ptr<Room>` inside `Device` to make sure there is only a single `Room` instance, while all devices can potentially modify this instance.
 
@@ -111,3 +111,12 @@ We also added a new virtual function, `uint32_t timeTravel(const uint32_t durati
 It will update `Device` accordingly, which includes "partical update" of gradually changed variables like temperature.
 
 In the end, we added a `getCurrentTime()` helper to format `now()`. We use it to pin time point in the device operation log.
+
+## Step 7: Exclusive Device Control by `SmartManager`
+
+Commit: **TODO**
+
+The `SmartManager` itself isn't special. The special part is how we ensure exclusive control of all `Device` instances, such that users cannot directly access them where they are created (likely in `main()`).
+We use rvalue in the function arg list and `std::move` to invalidate the original instance.
+
+Another small fix is to move those feature demo code, like for `std::iota`, to a helper function and run it conditionally (on a global bool flag). This makes the log cleaner.

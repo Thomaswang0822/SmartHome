@@ -70,9 +70,9 @@ public:
 
     /// @brief Log what has been done in an `operate()` which is stored in `data->dstring`.
     /// @param data
-    void logOperation(std::shared_ptr<DeviceData> data = nullptr) {
+    void logOperation(const std::shared_ptr<DeviceData> data = nullptr) const {
         if (data == nullptr) {
-            std::cout << std::format("Empty log: I have done nothing at {}!\n", getCurrentTime());
+            std::cout << std::format("Empty log: I have done nothing!\n");
         } else {
             std::cout << std::format(
                 "{} log: {}\n", magic_enum::enum_name(data->op_id), data->dstring
@@ -158,3 +158,7 @@ private:
 
     // Special data
 };
+
+typedef std::vector<std::shared_ptr<DeviceData>> DataList;
+typedef std::unordered_map<std::string, std::shared_ptr<Device>> DeviceMap;
+typedef std::unordered_map<std::string, DataList> DataMap;
