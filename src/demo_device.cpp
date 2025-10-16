@@ -1,49 +1,43 @@
 // Placeholder content
 
-#include "device.hpp"
+#include "demo_device.hpp"
 
 #include <chrono>
 #include <format>
 #include <iostream>
 
-void Device::hackName(std::string newName, size_t len) {
-    // Hack the name from the beginning
-    m_name.replace(0, len, newName);
-    std::cerr << "I got hacked and become " << getName() << std::endl;
-}
-
-void DemoDevice::operate(std::shared_ptr<DeviceData> data) {
+void DemoDevice::implOperate(std::shared_ptr<DeviceDataBase> data) {
     if (data == nullptr || !m_on)
         return;
 
     switch (data->op_id) {
-    case DeviceOpId::eHello:
-        data->dstring = hello();
+    case OpId::eHello:
+        data->log_str = hello();
         break;
-    case DeviceOpId::eSing:
-        data->dstring = sing();
+    case OpId::eSing:
+        data->log_str = sing();
         break;
     default:
-        // DeviceOpId::eDefault
+        // OpId::eDefault
         Device::operate();
         break;
     }
     return;
 }
 
-void DemoDevice::malfunction(std::shared_ptr<DeviceData> data) {
+void DemoDevice::implMalfunction(std::shared_ptr<DeviceDataBase> data) {
     if (data == nullptr || !m_on)
         return;
 
     switch (data->mf_id) {
-    case DeviceMfId::eLowBattery:
+    case DeviceDataBase::MfId::eLowBattery:
         m_on = false;
         break;
-    case DeviceMfId::eHacked:
+    case DeviceDataBase::MfId::eHacked:
         // replace "Demo" with "Evil"
         hackName("Evil", 4);
         break;
-    case DeviceMfId::eBroken:
+    case DeviceDataBase::MfId::eBroken:
         std::cerr << getName() << " is broken!" << std::endl;
         break;
     default:

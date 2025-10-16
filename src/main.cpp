@@ -1,4 +1,5 @@
 #include "air_fryer.hpp"
+#include "demo_device.hpp"
 #include "device.hpp"
 #include "smart_manager.hpp"
 #include "washer_dryer.hpp"
@@ -13,16 +14,13 @@
 static constexpr bool SHOULD_DEMO = false;
 static constexpr size_t N = 10;
 static constexpr float ROOM_TEMP = 25.f;
-typedef std::vector<std::vector<std::shared_ptr<DeviceData>>> NestedDeviceData;
+typedef std::vector<std::vector<std::shared_ptr<DeviceDataBase>>> NestedDeviceData;
 
 /// @brief TEMP: hard-code device creation. Will be replaced by ConfigFile/Cmdline parsing.
 /// @param vec Empty vector of Device shared_ptr to be populated.
-static void populateDevices(std::vector<std::shared_ptr<Device>>& vec) {
+static void populateDevices(std::vector<std::shared_ptr<DeviceInterface>>& vec) {
     if (!vec.empty())
         vec.clear();
-
-    // base class Device is not pure virtual
-    vec.push_back(std::make_shared<Device>("Device"));
 
     vec.push_back(std::make_shared<DemoDevice>("DemoBot"));
 
@@ -34,8 +32,7 @@ static void populateDevices(std::vector<std::shared_ptr<Device>>& vec) {
 }
 
 static void populateTravelTimes(std::vector<uint32_t>& vec) {
-    // no override for Device, DemoDevice, or AirFryer, so 0 is no_op.
-    vec.push_back(0);
+    // no override for DemoDevice or AirFryer, so 0 is no_op.
     vec.push_back(0);
     vec.push_back(0);
 
@@ -47,35 +44,24 @@ static void populateTravelTimes(std::vector<uint32_t>& vec) {
 
 /// @brief TEMP: hard-code creation of device operation data.
 /// In reality, each data should be created on-the-fly by `SmartManager`.
-/// @param vec Empty vector of DeviceData shared_ptr to be populated.
+/// @param vec Empty vector of DeviceDataBase shared_ptr to be populated.
 static void populateData(NestedDeviceData& vec) {
     if (!vec.empty())
         vec.clear();
 
-    // For device
-    {
-        std::vector<std::shared_ptr<DeviceData>> vdata;
-        auto data0a = std::make_shared<DeviceData>();
-        auto data0b = nullptr;
-        vdata.push_back(data0a);
-        vdata.push_back(data0b);
-
-        vec.push_back(vdata);
-    }
-
     // For DemoDevice
     {
-        std::vector<std::shared_ptr<DeviceData>> vdata;
+        std::vector<std::shared_ptr<DeviceDataBase>> vdata;
         {
-            auto data = std::make_shared<DeviceData>();
-            data->op_id = DeviceOpId::eHello;
-            data->mf_id = DeviceMfId::eBroken;
+            auto data = std::make_shared<DeviceDataBase>();
+            data->op_id = OpId::eHello;
+            data->mf_id = DeviceDataBase::MfId::eBroken;
             vdata.push_back(data);
         }
         {
-            auto data = std::make_shared<DeviceData>();
-            data->op_id = DeviceOpId::eSing;
-            data->mf_id = DeviceMfId::eNormal;
+            auto data = std::make_shared<DeviceDataBase>();
+            data->op_id = OpId::eSing;
+            data->mf_id = DeviceDataBase::MfId::eNormal;
             vdata.push_back(data);
         }
         vec.push_back(vdata);
@@ -83,19 +69,19 @@ static void populateData(NestedDeviceData& vec) {
 
     // For AirFryer, int and float are time and volume of food to cook
     {
-        std::vector<std::shared_ptr<DeviceData>> vdata;
+        std::vector<std::shared_ptr<DeviceDataBase>> vdata;
         {
-            auto data = std::make_shared<DeviceData>();
-            data->op_id = DeviceOpId::eAirFryerCook;
-            data->mf_id = DeviceMfId::eNormal;
-            data->dint = 5;
-            data->dfloat = 2.0f;
+            auto data = std::make_shared<AirFryerData>();
+            data->op_id = OpId::eAirFryerCook;
+            data->mf_id = DeviceDataBase::MfId::eNormal;
+            data->time_sec = 5;
+            data->food_volume = 2.0f;
             vdata.push_back(data);
         }
         {
-            auto data = std::make_shared<DeviceData>();
-            data->op_id = DeviceOpId::eAirFryerClean;
-            data->mf_id = DeviceMfId::eLowBattery;
+            auto data = std::make_shared<AirFryerData>();
+            data->op_id = OpId::eAirFryerClean;
+            data->mf_id = DeviceDataBase::MfId::eLowBattery;
             vdata.push_back(data);
         }
         vec.push_back(vdata);
@@ -103,29 +89,30 @@ static void populateData(NestedDeviceData& vec) {
 
     // For WahserDryer, int and float are time and volume of cloth
     {
-        std::vector<std::shared_ptr<DeviceData>> vdata;
+        std::vector<std::shared_ptr<DeviceDataBase>> vdata;
         {
-            auto data = std::make_shared<DeviceData>();
-            data->op_id = DeviceOpId::eWashDryerDryOnly;
-            data->mf_id = DeviceMfId::eNormal;
-            data->dint = 3;
-            data->dfloat = 8.0f;
+            auto data = std::make_shared<WasherDryerData>();
+            data->op_id = OpId::eWashDryerDryOnly;
+            data->mf_id = DeviceDataBase::MfId::eNormal;
+            data->dry_sec = 3;
+            data->cloth_volume = 8.0f;
             vdata.push_back(data);
         }
         {
-            auto data = std::make_shared<DeviceData>();
-            data->op_id = DeviceOpId::eWashDryerWashOnly;
-            data->mf_id = DeviceMfId::eNormal;
-            data->dint = 5;
-            data->dfloat = 9.0f;
+            auto data = std::make_shared<WasherDryerData>();
+            data->op_id = OpId::eWashDryerWashOnly;
+            data->mf_id = DeviceDataBase::MfId::eNormal;
+            data->wash_sec = 5;
+            data->cloth_volume = 9.0f;
             vdata.push_back(data);
         }
         {
-            auto data = std::make_shared<DeviceData>();
-            data->op_id = DeviceOpId::eWashDryerCombo;
-            data->mf_id = DeviceMfId::eHacked;
-            data->dint = 7;
-            data->dfloat = 10.0f;
+            auto data = std::make_shared<WasherDryerData>();
+            data->op_id = OpId::eWashDryerCombo;
+            data->mf_id = DeviceDataBase::MfId::eHacked;
+            data->wash_sec = 7;
+            data->dry_sec = 11;
+            data->cloth_volume = 10.0f;
             vdata.push_back(data);
         }
         vec.push_back(vdata);
@@ -134,27 +121,27 @@ static void populateData(NestedDeviceData& vec) {
     // For RealAC, float, int, bool, string are target temperature, duration (mins but actually
     // executed in secs), heat or not, mode.
     {
-        std::vector<std::shared_ptr<DeviceData>> vdata;
+        std::vector<std::shared_ptr<DeviceDataBase>> vdata;
         {
             // 2000w in low is 500w, +3 degree needs 10 mins
-            auto data = std::make_shared<DeviceData>();
-            data->op_id = DeviceOpId::eRealAcOpenTillDeg;
-            data->mf_id = DeviceMfId::eNormal;
-            // data->dint = 10;
-            data->dfloat = ROOM_TEMP + 3.0f;
-            data->dbool = true;
-            data->dstring = "eLow";
+            auto data = std::make_shared<RealACData>();
+            data->op_id = OpId::eRealAcOpenTillDeg;
+            data->mf_id = DeviceDataBase::MfId::eNormal;
+            // data->duration_sec = 10;
+            data->target_temp = ROOM_TEMP + 3.0f;
+            data->is_heat = true;
+            data->mode = RealACData::Mode::eLow;
             vdata.push_back(data);
         }
         {
             // 2000w in mid is 1000w, for 5 mins, expect -= 3 degree
-            auto data = std::make_shared<DeviceData>();
-            data->op_id = DeviceOpId::eRealAcOpenForMins;
-            data->mf_id = DeviceMfId::eNormal;
-            data->dint = 5;
-            // data->dfloat = ROOM_TEMP + 3.0f;
-            data->dbool = false;
-            data->dstring = "eMid";
+            auto data = std::make_shared<RealACData>();
+            data->op_id = OpId::eRealAcOpenForMins;
+            data->mf_id = DeviceDataBase::MfId::eNormal;
+            data->duration_sec = 5;
+            // data->target_temp = ROOM_TEMP + 3.0f;
+            data->is_heat = false;
+            data->mode = RealACData::Mode::eMid;
             vdata.push_back(data);
         }
         vec.push_back(vdata);
@@ -179,16 +166,16 @@ static void demo() {
 
     // create our room first: creation in main until we implement SmartManager
     std::shared_ptr<Room> sp_room = std::make_shared<Room>(ROOM_TEMP);
-    Device::loginRoom(sp_room);
+    DeviceInterface::loginRoom(sp_room);
 
     // std::ranges::transform: C++ equivalent of Python [ DemoDevice(i) for i in range(N) ]
-    std::vector<std::shared_ptr<Device>> vec_devices;
+    std::vector<std::shared_ptr<DeviceInterface>> vec_devices;
     auto range_ids = std::ranges::iota_view{0u, N};
     std::ranges::transform(
         range_ids,                       // input
         std::back_inserter(vec_devices), // output, intially empty
-        [](uint32_t id) -> std::shared_ptr<Device> {
-            if (id < static_cast<uint32_t>(DeviceOpId::COUNT))
+        [](uint32_t id) -> std::shared_ptr<DeviceInterface> {
+            if (id < static_cast<uint32_t>(OpId::COUNT))
                 return std::make_shared<AirFryer>();
             else
                 return std::make_shared<DemoDevice>("DemoDevice_" + std::to_string(id));
@@ -204,17 +191,30 @@ static void demo() {
     std::cout << "std::views::enumerate() NOT supported. We will use range-v3 instead.\n";
 #endif
 
-    constexpr auto OP_COUNT = static_cast<uint32_t>(DeviceOpId::COUNT);
-    constexpr auto MF_COUNT = static_cast<uint32_t>(DeviceMfId::COUNT);
-    auto data = std::make_shared<DeviceData>();
+    constexpr auto OP_COUNT = static_cast<uint32_t>(OpId::COUNT);
+    constexpr auto MF_COUNT = static_cast<uint32_t>(DeviceDataBase::MfId::COUNT);
+    auto data = std::make_shared<DeviceDataBase>();
+    auto af_data = std::make_shared<AirFryerData>();
     for (const auto& [index, device] : vec_devices | enum_view::enumerate) {
-        data->op_id = static_cast<DeviceOpId>(index % OP_COUNT);
-        data->mf_id = static_cast<DeviceMfId>(index % MF_COUNT);
-        data->dint = static_cast<int>(index); // seconds
-        data->dfloat = static_cast<float>(index) + 0.1f;
+        std::cout << std::string(20, '=')
+                  << std::format("{} at {}", device->getName(), device->getCurrentTime())
+                  << std::string(20, '=') << std::endl;
 
-        device->operate(data);
-        device->malfunction(data);
+        if (auto af = std::dynamic_pointer_cast<AirFryer>(device)) {
+            af_data->op_id = static_cast<OpId>(index % OP_COUNT);
+            af_data->mf_id = static_cast<DeviceDataBase::MfId>(index % MF_COUNT);
+            af_data->time_sec = static_cast<int>(index); // seconds
+            af_data->food_volume = static_cast<float>(index) + 0.1f;
+
+            device->operate(af_data);
+            device->malfunction(af_data);
+        } else {
+            data->op_id = static_cast<OpId>(index % OP_COUNT);
+            data->mf_id = static_cast<DeviceDataBase::MfId>(index % MF_COUNT);
+
+            device->operate(data);
+            device->malfunction(data);
+        }
         std::cout << std::string(20, '=') << std::endl;
     }
 
@@ -265,7 +265,7 @@ int main() {
     sp_manager->connectToRoom(std::move(sp_room));
 
     // prepare data
-    std::vector<std::shared_ptr<Device>> vec_devices;
+    std::vector<std::shared_ptr<DeviceInterface>> vec_devices;
     populateDevices(vec_devices);
     NestedDeviceData all_data;
     populateData(all_data);

@@ -2,6 +2,7 @@
 
 #include "device_data.hpp"
 #include "room.hpp"
+#include "utils.hpp"
 
 #include <chrono>
 #include <format>
@@ -10,48 +11,36 @@
 #include <string>
 #include <thread>
 
-/// @brief Timer a reusable time check that does NOT simulate time elapsing.
-struct Timer {
-    Timer() = default;
-    void begin(uint32_t total_time_sec) {
-        t_total_sec = std::chrono::seconds(total_time_sec);
-        t_start = std::chrono::system_clock::now();
-        running = true;
-    }
+// Common interface for all devices, pure virtual
+class DeviceInterface {
+public:
+    virtual ~DeviceInterface() = default;
 
-    /// @brief Check if the timer is still running.
-    /// If time is up (now - start >= target), `Stop()` and return 0;
-    /// Else, return remaining time.
-    /// @endcond If return 0, the Timer is ready to use.
-    ///
-    /// Note that `running` bool check should be done outside.
-    /// @return remaining_time Output, unit is sec.
-    int checkRemainingTime() {
-        using namespace std::chrono;
-        if (!running) {
-            // just a safe guard.
-            return 0;
-        } else if (duration_cast<seconds>(system_clock::now() - t_start) >= t_total_sec) {
-            stop();
-            return 0;
-        } else {
-            // can use .count() directly since we use consistent unit second.
-            return (t_total_sec - duration_cast<seconds>(system_clock::now() - t_start)).count();
-        }
-    }
+    virtual void operate(std::shared_ptr<DeviceDataBase> data) = 0;
+    virtual void malfunction(std::shared_ptr<DeviceDataBase> data) = 0;
+    virtual uint32_t timeTravel(uint32_t duration_sec = 0) = 0;
+    virtual void logOperation(const std::shared_ptr<DeviceDataBase> data = nullptr) const = 0;
+    static void loginRoom(std::shared_ptr<Room> room) { s_room = room; }
 
-    /// @brief set to not running state
-    void stop() { running = false; }
+    virtual std::string getName() const = 0;
+    virtual std::string getCurrentTime() const = 0;
 
-    std::chrono::system_clock::time_point t_start;
-    std::chrono::seconds t_total_sec;
-    bool running = false;
+protected:
+    /// @brief static because the room should be unique, while it's shared
+    /// across all devices.
+    inline static std::shared_ptr<Room> s_room = nullptr;
 };
 
-/// @brief Device base class. All devices in this project should extend from it.
+/// @brief Device base class with CRTP. All devices in this project should extend from it.
 /// It makes more sense for devices to affect `Room` directly, instead of the eaiser design:
 /// `SmartManager` collects all updates and modifies the world.
-class Device {
+///
+/// With CRTP (Curiously Recurring Template Pattern), we can replace traditionaly virtual function
+/// override with static_cast for `Derived` and dynamic_pointer_cast for `DataType`
+/// @tparam Derived e.g. RealAC
+/// @tparam DataType e.g. RealACData
+template <typename Derived, typename DataType>
+class Device : public DeviceInterface {
 public:
     /// @brief Constructor
     /// @param name device name, should be unique.
@@ -62,20 +51,20 @@ public:
 
     /// @brief
     /// @return device name
-    std::string getName() const { return m_name; }
+    std::string getName() const override { return m_name; }
 
-    std::string getCurrentTime() const {
+    std::string getCurrentTime() const override {
         return std::format("{:%T}", std::chrono::system_clock::now());
     }
 
-    /// @brief Log what has been done in an `operate()` which is stored in `data->dstring`.
+    /// @brief Log what has been done in an `operate()` which is stored in `data->log_str`.
     /// @param data
-    void logOperation(const std::shared_ptr<DeviceData> data = nullptr) const {
+    void logOperation(const std::shared_ptr<DeviceDataBase> data) const override {
         if (data == nullptr) {
             std::cout << std::format("Empty log: I have done nothing!\n");
         } else {
             std::cout << std::format(
-                "{} log: {}\n", magic_enum::enum_name(data->op_id), data->dstring
+                "{} log: {}\n", magic_enum::enum_name(data->op_id), data->log_str
             );
         }
     }
@@ -87,9 +76,19 @@ public:
 
     /// @brief Simulate how the device behave when function properly
     /// @param op_id Identify which operations to be performed, because there can be many.
-    virtual void operate(std::shared_ptr<DeviceData> data = nullptr) {
-        if (data == nullptr || data->op_id == DeviceOpId::eDefault) {
+    void operate(std::shared_ptr<DeviceDataBase> data = nullptr) override {
+        if (data == nullptr || data->op_id == OpId::eDefault) {
             std::cout << "I am a " << this->getName() << " and I do NOTHING!" << std::endl;
+        } else {
+            // CRTP magic: call derived implementation
+            auto derived_data = convertData(data); // nullptr if inconsistent cast
+            Debug::logAssert(
+                derived_data != nullptr,
+                "Should get {}, but got {}",
+                typeid(DataType).name(),
+                data->getDataType()
+            );
+            static_cast<Derived*>(this)->implOperate(derived_data);
         }
     }
 
@@ -102,18 +101,28 @@ public:
     /// @param duration_sec If set to 0, the device should simulate till the finish of current
     /// opeation. Otherwise it simulate for exactly `duration_sec` seconds.
     /// @return How long we have simulated, equal to `duration_sec` if it != 0.
-    virtual uint32_t timeTravel(const uint32_t duration_sec = 0) {
-        std::this_thread::sleep_for(std::chrono::seconds(duration_sec));
-        return duration_sec;
+    uint32_t timeTravel(const uint32_t duration_sec) override {
+        // CRTP magic: call derived implementation
+        return static_cast<Derived*>(this)->implTimeTravel(duration_sec);
     }
 
     /// @brief Simulate how the device behave when function incorrectly
     /// @param mf_id Identify which operations to be performed, because there can be many.
-    virtual void malfunction(std::shared_ptr<DeviceData> data = nullptr) {
-        if (data == nullptr || data->mf_id == DeviceMfId::eNormal) {
+    void malfunction(std::shared_ptr<DeviceDataBase> data = nullptr) override {
+        if (data == nullptr || data->mf_id == DeviceDataBase::MfId::eNormal) {
             std::cerr << std::format("Philosophical question from {}: ", getName())
                       << "If I run normally while malfunction, do I run correctly or incorrectly?"
                       << std::endl;
+        } else {
+            // CRTP magic: call derived implementation
+            auto derived_data = convertData(data); // nullptr if inconsistent cast
+            Debug::logAssert(
+                derived_data != nullptr,
+                "Should get {}, but got {}",
+                typeid(DataType).name(),
+                data->getDataType()
+            );
+            static_cast<Derived*>(this)->implMalfunction(derived_data);
         }
     }
 
@@ -126,39 +135,24 @@ protected:
     inline static uint32_t s_global_id = 0;
     // increment & decrement
     inline static uint32_t s_total_count = 0;
-    /// @brief static because the room should be unique, while it's shared
-    /// across all devices.
-    inline static std::shared_ptr<Room> s_room = nullptr;
 
-    /// @brief A universal malfunction corresponding to DeviceMfId::eHacked,
+    /// @brief A universal malfunction corresponding to MfId::eHacked,
     /// replace the first `len` char of `m_name` with `newName`.
     /// `E.g. "DemoDevice_1".replace(0 /* from beginning */, 4, "Bad") = "BadDevice_1";`
     /// @param newName
     /// @param len
-    void hackName(std::string newName, size_t len);
+    void hackName(std::string newName, size_t len) {
+        // Hack the name from the beginning
+        m_name.replace(0, len, newName);
+        std::cerr << "I got hacked and become " << getName() << std::endl;
+    }
+
+    /// @brief Type-safe data conversion
+    std::shared_ptr<DataType> convertData(std::shared_ptr<DeviceDataBase> data) {
+        return std::dynamic_pointer_cast<DataType>(data);
+    }
 };
 
-/// @brief A "better" placeholder class to demo
-/// how an easiest-possible device works.
-class DemoDevice : public Device {
-public:
-    DemoDevice(std::string name) : Device(name) {};
-    /// @brief Operate() overridden by DemoDevice
-    /// @param op_id Identify which operations to be performed, because there can be many.
-    void operate(std::shared_ptr<DeviceData> data) override;
-
-    void malfunction(std::shared_ptr<DeviceData> data) override;
-
-private:
-    // All normal operations
-    std::string hello() const;
-    std::string sing() const;
-
-    // All malfunctions
-
-    // Special data
-};
-
-typedef std::vector<std::shared_ptr<DeviceData>> DataList;
-typedef std::unordered_map<std::string, std::shared_ptr<Device>> DeviceMap;
+typedef std::vector<std::shared_ptr<DeviceDataBase>> DataList;
+typedef std::unordered_map<std::string, std::shared_ptr<DeviceInterface>> DeviceMap;
 typedef std::unordered_map<std::string, DataList> DataMap;

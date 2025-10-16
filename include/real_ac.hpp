@@ -3,13 +3,13 @@
 #include "device.hpp"
 
 /// @brief Air conditionor "realistic" as it modifies world temp gradually depending on power.
-class RealAC : public Device {
+class RealAC : public Device<RealAC, RealACData> {
 public:
     RealAC(uint32_t power) : Device("RealAC"), k_power(power) {};
 
-    void operate(std::shared_ptr<DeviceData> data) override;
-    void malfunction(std::shared_ptr<DeviceData> data) override;
-    uint32_t timeTravel(const uint32_t duration_sec) override;
+    void implOperate(std::shared_ptr<RealACData> data);
+    void implMalfunction(std::shared_ptr<RealACData> data);
+    uint32_t implTimeTravel(const uint32_t duration_sec);
 
 private:
     /// @brief Assumption, a 1000w AC will cool or heat with rate 0.01 c/sec,
@@ -22,19 +22,14 @@ private:
 
     bool m_heat = false;
     Timer m_timer;
+    RealACData::Mode m_mode;
 
-    /// @brief Our AC can operates in 100%, 50%, and 25% mode.
-    /// Their values are also used to shift max power which is hundreds to thousands watts.
-    enum class Mode : uint32_t {
-        eFull = 0,
-        eMid = 1,
-        eLow = 2,
-    } m_mode = Mode::eFull;
-
-    bool setMode(std::string str);
+    void setMode(const RealACData::Mode mode) { m_mode = mode; }
 
     /// @brief Get actual power in watts modified by mode.
-    inline float getPower() { return k_power >> static_cast<uint32_t>(m_mode); }
+    inline float getPower(const RealACData::Mode mode) {
+        return k_power >> static_cast<uint32_t>(mode);
+    }
 
     /// @brief Async set AC open for certain mins.
     ///
@@ -42,7 +37,7 @@ private:
     /// conversion. Later we will manage this properly in `SmartManager`.
     /// @param data `dfloat`, `dint`, `dbool`, `dstring` fields should store
     /// target temperature, duration (mins but actually executed in secs), heat or not, mode.
-    void openForMins(std::shared_ptr<DeviceData> data);
+    void openForMins(std::shared_ptr<RealACData> data);
 
     /// @brief Async set AC open till target degs.
     ///
@@ -50,7 +45,7 @@ private:
     /// conversion. Later we will manage this properly in `SmartManager`.
     /// @param data `dfloat`, `dint`, `dbool`, `dstring` fields should store
     /// target temperature, duration (mins but actually executed in secs), heat or not, mode.
-    void openTillDeg(std::shared_ptr<DeviceData> data);
+    void openTillDeg(std::shared_ptr<RealACData> data);
 
     /// @brief Can be called at anytime after `openForMins()` and `openTillDeg()`.
     /// Besides updating temperature, it also stops the `Timer` if finished.

@@ -2,19 +2,19 @@
 #include <thread>
 #include <utils.hpp>
 
-void WasherDryer::operate(std::shared_ptr<DeviceData> data) {
+void WasherDryer::implOperate(std::shared_ptr<WasherDryerData> data) {
     if (data == nullptr || !m_on)
         return;
 
     switch (data->op_id) {
-    case DeviceOpId::eWashDryerCombo:
+    case OpId::eWashDryerCombo:
         // auto call Dry() after Wash() finishes
         wash(data);
         break;
-    case DeviceOpId::eWashDryerWashOnly:
+    case OpId::eWashDryerWashOnly:
         wash(data);
         break;
-    case DeviceOpId::eWashDryerDryOnly:
+    case OpId::eWashDryerDryOnly:
         dry(data);
         break;
     default:
@@ -24,21 +24,21 @@ void WasherDryer::operate(std::shared_ptr<DeviceData> data) {
     }
 }
 
-void WasherDryer::malfunction(std::shared_ptr<DeviceData> data) {
+void WasherDryer::implMalfunction(std::shared_ptr<WasherDryerData> data) {
     if (data == nullptr || !m_on)
         return;
 
     switch (data->mf_id) {
-    case DeviceMfId::eLowBattery:
+    case WasherDryerData::MfId::eLowBattery:
         m_on = false;
         break;
-    case DeviceMfId::eHacked: {
+    case WasherDryerData::MfId::eHacked: {
         // replace "WasherDryer" with LuffyAce?
-        std::string hack_name = data->dstring == "" ? "LuffyAce" : data->dstring;
+        std::string hack_name = data->log_str == "" ? "LuffyAce" : data->log_str;
         hackName(hack_name, 11);
         break;
     }
-    case DeviceMfId::eBroken:
+    case WasherDryerData::MfId::eBroken:
         std::cerr << getName() << " are leaking! See if Super Mario can help!" << std::endl;
         break;
     default:
@@ -48,7 +48,7 @@ void WasherDryer::malfunction(std::shared_ptr<DeviceData> data) {
     }
 }
 
-uint32_t WasherDryer::timeTravel(const uint32_t duration_sec) {
+uint32_t WasherDryer::implTimeTravel(const uint32_t duration_sec) {
     using namespace std::chrono;
     auto sim_remaining = seconds(duration_sec);
     auto constexpr ZERO_SEC = seconds(0);
@@ -98,12 +98,14 @@ uint32_t WasherDryer::timeTravel(const uint32_t duration_sec) {
     }
 }
 
-void WasherDryer::wash(std::shared_ptr<DeviceData> data) {
+void WasherDryer::wash(std::shared_ptr<WasherDryerData> data) {
     Debug::logAssert(data != nullptr, "caller Operate() should filter out nullptr input");
 
-    if (data->dfloat > k_total_volume) {
-        data->dstring = std::format(
-            "You put too much cloth ({}) more than total volume {}.\n", data->dfloat, k_total_volume
+    if (data->cloth_volume > k_total_volume) {
+        data->log_str = std::format(
+            "You put too much cloth ({}) more than total volume {}.\n",
+            data->cloth_volume,
+            k_total_volume
         );
 
         data->success = false;
@@ -120,15 +122,17 @@ void WasherDryer::wash(std::shared_ptr<DeviceData> data) {
     // before submitting the next wash
     Debug::logAssert(!m_wash_bin.empty(), "m_wash_bin should not be empty");
     Debug::logAssert(!m_wash_timer.running, "m_wash_timer should not be running");
-    m_wash_timer.begin(data->dint);
+    m_wash_timer.begin(data->wash_sec);
 }
 
-void WasherDryer::dry(std::shared_ptr<DeviceData> data) {
+void WasherDryer::dry(std::shared_ptr<WasherDryerData> data) {
     Debug::logAssert(data != nullptr, "caller Operate() should filter out nullptr input");
 
-    if (data->dfloat > k_total_volume) {
-        data->dstring = std::format(
-            "You put too much cloth ({}) more than total volume {}.\n", data->dfloat, k_total_volume
+    if (data->cloth_volume > k_total_volume) {
+        data->log_str = std::format(
+            "You put too much cloth ({}) more than total volume {}.\n",
+            data->cloth_volume,
+            k_total_volume
         );
 
         data->success = false;
@@ -145,7 +149,7 @@ void WasherDryer::dry(std::shared_ptr<DeviceData> data) {
     // before submitting the next dry
     Debug::logAssert(!m_dry_bin.empty(), "m_dry_bin should not be empty");
     Debug::logAssert(!m_dry_timer.running, "m_dry_timer should not be running");
-    m_dry_timer.begin(data->dint);
+    m_dry_timer.begin(data->dry_sec);
 }
 
 void WasherDryer::performNext(bool is_wash) {
@@ -161,21 +165,21 @@ void WasherDryer::performNext(bool is_wash) {
     auto prev_data = bin.front();
     bin.pop_front();
     prev_data->success = true;
-    prev_data->dstring += std::format(
+    prev_data->log_str += std::format(
         "{} job completes after {} seconds, at {:%T}. ",
         is_wash ? "Wash" : "Dry",
-        prev_data->dint,
+        is_wash ? prev_data->wash_sec : prev_data->dry_sec,
         // not curr time, but time when job finished
         timer.t_start + timer.t_total_sec
     );
 
     // Check if this is a wash job in a wash-dry combo
-    if (is_wash && prev_data->op_id == DeviceOpId::eWashDryerCombo) {
+    if (is_wash && prev_data->op_id == OpId::eWashDryerCombo) {
         // wash success but not combo
         prev_data->success = false;
         // submit to dryer.
-        prev_data->dstring +=
-            std::format("Begin dry in the combo, also take {} seconds; ", prev_data->dint);
+        prev_data->log_str +=
+            std::format("Begin dry in the combo, also take {} seconds; ", prev_data->dry_sec);
         dry(prev_data);
     }
 }

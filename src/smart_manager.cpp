@@ -1,6 +1,6 @@
 #include "smart_manager.hpp"
 
-bool SmartManager::addDevice(std::shared_ptr<Device>&& device_ptr) {
+bool SmartManager::addDevice(std::shared_ptr<DeviceInterface>&& device_ptr) {
     auto device_name = device_ptr->getName();
     if (m_device_map.contains(device_name)) {
         std::cerr << std::format("{} already exist in SmartManager device list.\n", device_name);
@@ -12,7 +12,9 @@ bool SmartManager::addDevice(std::shared_ptr<Device>&& device_ptr) {
     }
 }
 
-bool SmartManager::addSingleData(std::string device_name, std::shared_ptr<DeviceData>&& data_ptr) {
+bool SmartManager::addSingleData(
+    std::string device_name, std::shared_ptr<DeviceDataBase>&& data_ptr
+) {
     if (!m_device_map.contains(device_name)) {
         std::cerr << std::format(
             "{} doesn't exist in SmartManager device list. Use addDevice() first.\n", device_name

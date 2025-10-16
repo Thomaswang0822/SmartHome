@@ -10,6 +10,7 @@ set(SmartHome_INC
     utils.hpp
     device_data.hpp
     device.hpp
+    demo_device.hpp
     air_fryer.hpp
     washer_dryer.hpp
     room.hpp

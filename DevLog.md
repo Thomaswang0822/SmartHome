@@ -120,3 +120,26 @@ The `SmartManager` itself isn't special. The special part is how we ensure exclu
 We use rvalue in the function arg list and `std::move` to invalidate the original instance.
 
 Another small fix is to move those feature demo code, like for `std::iota`, to a helper function and run it conditionally (on a global bool flag). This makes the log cleaner.
+
+## (VERSION 2.0) CRTP Polymorphism of Device
+
+Previously, we use the traditional runtime polymorphism for our devices and define virtual functions like `operate()`, `malfunction()`, etc. In version 2.0, we swtiched to CRTP (Curiously Recurring Template Pattern) compile-time polymorphism.
+
+First we define a pure virtual `DeviceInterface` and put ALL public virtual functions there. Then we have a `template <typename Derived, typename DataType> class Device : public DeviceInterface` CRTP device base. Finally, an actual derived device class looks like `class AirFryer : public Device<AirFryer, AirFryerData>`.
+
+Then we can use `static_cast` to achieve polymorphism in a very different way.
+
+```cpp
+// In Device:
+    uint32_t timeTravel(const uint32_t duration_sec) override {
+        // CRTP magic: call derived implementation
+        return static_cast<Derived*>(this)->implTimeTravel(duration_sec);
+    }
+
+// In WasherDryer, for example:
+    void implOperate(std::shared_ptr<WasherDryerData> data);
+    void implMalfunction(std::shared_ptr<WasherDryerData> data);
+    uint32_t implTimeTravel(const uint32_t duration_sec);
+```
+
+Note that using CRTP doesn't necessarily runs faster than traditional virtual function override. We use it mainly for self-study purpose.
