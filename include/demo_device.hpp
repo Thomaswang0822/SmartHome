@@ -5,14 +5,14 @@
 
 /// @brief A "better" placeholder class to demo
 /// how an easiest-possible device works.
-class DemoDevice : public Device<DemoDevice, DeviceDataBase> {
+class DemoDevice : public Device<DemoDevice, DemoDeviceData> {
 public:
     DemoDevice(std::string name) : Device(name) {};
     /// @brief Operate() overridden by DemoDevice
     /// @param op_id Identify which operations to be performed, because there can be many.
-    void implOperate(std::shared_ptr<DeviceDataBase> data);
+    void implOperate(std::shared_ptr<DemoDeviceData> data);
 
-    void implMalfunction(std::shared_ptr<DeviceDataBase> data);
+    void implMalfunction(std::shared_ptr<DemoDeviceData> data);
 
     uint32_t implTimeTravel(const uint32_t duration_sec) {
         // nothing timed here

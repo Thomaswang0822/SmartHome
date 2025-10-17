@@ -114,14 +114,16 @@ In the end, we added a `getCurrentTime()` helper to format `now()`. We use it to
 
 ## Step 7: Exclusive Device Control by `SmartManager`
 
-Commit: **TODO**
+Commit: **19613d4**
 
 The `SmartManager` itself isn't special. The special part is how we ensure exclusive control of all `Device` instances, such that users cannot directly access them where they are created (likely in `main()`).
 We use rvalue in the function arg list and `std::move` to invalidate the original instance.
 
 Another small fix is to move those feature demo code, like for `std::iota`, to a helper function and run it conditionally (on a global bool flag). This makes the log cleaner.
 
-## (VERSION 2.0) CRTP Polymorphism of Device
+## (VERSION 2.0) Step 8: CRTP Polymorphism of Device
+
+Commit: **aeaa2e9**
 
 Previously, we use the traditional runtime polymorphism for our devices and define virtual functions like `operate()`, `malfunction()`, etc. In version 2.0, we swtiched to CRTP (Curiously Recurring Template Pattern) compile-time polymorphism.
 
@@ -143,3 +145,47 @@ Then we can use `static_cast` to achieve polymorphism in a very different way.
 ```
 
 Note that using CRTP doesn't necessarily runs faster than traditional virtual function override. We use it mainly for self-study purpose.
+
+## Step 9: More Robust Execution Data and Formatted Execution Log
+
+Commit: **TODO**
+
+First, we redesign the operation identifiers. Previously, they are 2 universal `enum class OpId` and `enum class MfId`.
+The problem is that though all devices share the same set of malfunction ids, they have different operation ids.
+
+```cpp
+enum class OpId : uint32_t {
+    eDefault = 0,
+    // for DemoDevice
+    eHello = 1,
+    eSing = 2,
+    // for AirFryer
+    eAirFryerCook = 3,
+    eAirFryerClean = 4,
+    // for WashDryer
+    eWashDryerCombo = 5,
+    eWashDryerWashOnly = 6,
+    eWashDryerDryOnly = 7,
+    // for RealAC
+    eRealAcOpenTillDeg = 8,
+    eRealAcOpenForMins = 9,
+
+    COUNT,
+};
+```
+
+In the old universal operation id, not only is it verbose (we prefixed device name to differentiate them), but also type-unsafe.
+i.e. It's perfectly managable to pass `eWashDryerCombo` to a `RealAC`, and of course this is not what we want. Thus, we changed to device-local enum that contains its own ids.
+
+Then we unified the device execution data `DeviceDataBase`. Now it only has a unique id of type `std::variant` of universal malfunction id and device-local operation id. Following that, we combine the 2 API's `operate()` and `malfunction()` into a `run()`,
+which will unpack the variant id and call respective implementation function.
+Now, we can freely trigger operations and malfunctions by setting the unique id only, instead of restricted by the "for each device in the device list" loop.
+
+Finally we collect all the `cout` and `cerr` into a log system and give them a universal format. Now our log looks like:
+
+```txt
+Operation Log eRealAcOpenForMins at 2025-10-17 07:16:12.318554:
+        openForMins() starts from 25 deg at 07:16:12.318528, set to cool on eMid, will run for 5 sec and reach 22 deg, but may be stopped early.
+Malfunction Log eHacked at 2025-10-17 07:16:12.318597:
+        RealAC_0 gets hacked! Burning everyone to death!
+```

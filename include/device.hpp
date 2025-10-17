@@ -4,6 +4,7 @@
 #include "room.hpp"
 #include "utils.hpp"
 
+#include <algorithm>
 #include <chrono>
 #include <format>
 #include <iostream>
@@ -16,10 +17,10 @@ class DeviceInterface {
 public:
     virtual ~DeviceInterface() = default;
 
-    virtual void operate(std::shared_ptr<DeviceDataBase> data) = 0;
-    virtual void malfunction(std::shared_ptr<DeviceDataBase> data) = 0;
+    virtual void run(std::shared_ptr<DeviceDataBase> data) = 0;
     virtual uint32_t timeTravel(uint32_t duration_sec = 0) = 0;
-    virtual void logOperation(const std::shared_ptr<DeviceDataBase> data = nullptr) const = 0;
+
+    virtual void printLog() const = 0;
     static void loginRoom(std::shared_ptr<Room> room) { s_room = room; }
 
     virtual std::string getName() const = 0;
@@ -41,6 +42,9 @@ protected:
 /// @tparam DataType e.g. RealACData
 template <typename Derived, typename DataType>
 class Device : public DeviceInterface {
+    typedef std::variant<DeviceDataBase::MfId, typename DataType::OpId> VariantType;
+    typedef std::pair<std::chrono::system_clock::time_point, std::string> LogEntry;
+
 public:
     /// @brief Constructor
     /// @param name device name, should be unique.
@@ -49,48 +53,50 @@ public:
         s_global_id++;
     }
 
+#pragma region LogisticFunc
     /// @brief
     /// @return device name
     std::string getName() const override { return m_name; }
 
-    std::string getCurrentTime() const override {
+    inline std::string getCurrentTime() const override {
         return std::format("{:%T}", std::chrono::system_clock::now());
     }
 
-    /// @brief Log what has been done in an `operate()` which is stored in `data->log_str`.
-    /// @param data
-    void logOperation(const std::shared_ptr<DeviceDataBase> data) const override {
-        if (data == nullptr) {
-            std::cout << std::format("Empty log: I have done nothing!\n");
-        } else {
-            std::cout << std::format(
-                "{} log: {}\n", magic_enum::enum_name(data->op_id), data->log_str
-            );
+    /// @brief DataType::OpId is a ​dependent name​ (on DataType). We need to use the typename
+    /// keyword to tell the compiler that DataType::OpId refers to a type.
+    inline typename DataType::OpId getOpId(const std::shared_ptr<DeviceDataBase> data) const {
+        // std::get will throw error for us
+        return std::get<typename DataType::OpId>(convertData(data)->id);
+    }
+
+    inline DeviceDataBase::MfId getMfId(const std::shared_ptr<DeviceDataBase> data) const {
+        // std::get will throw error for us
+        return std::get<DeviceDataBase::MfId>(convertData(data)->id);
+    }
+
+    void addMalfunctionLog(std::string&& log, DeviceDataBase::MfId mf_id) const;
+    void addOperationLog(std::string&& log, typename DataType::OpId op_id) const;
+    void addMiscLog(std::string&& log, std::string identifier) const;
+    /// @brief Sort vector of LogEntry in chronological order.
+    /// Will it ever be used? (Will we somehow create unchronological log?)
+    void sortLog() { std::sort(m_log_system.begin(), m_log_system.end(), std::less<>{}); }
+    /// @brief Log what has been done up to now.
+    void printLog() const override {
+        // header
+        std::cout << std::string(20, '=') << std::format("{} at {}", getName(), getCurrentTime())
+                  << std::string(20, '=') << std::endl;
+        // content
+        for (auto& [time, log_str] : m_log_system) {
+            std::cout << log_str << std::endl;
         }
     }
 
     /// @brief Should better be called before creating any Device instance.
     static void loginRoom(std::shared_ptr<Room> room) { s_room = room; }
+#pragma endregion
 
-    // BEGIN virtual functions
-
-    /// @brief Simulate how the device behave when function properly
-    /// @param op_id Identify which operations to be performed, because there can be many.
-    void operate(std::shared_ptr<DeviceDataBase> data = nullptr) override {
-        if (data == nullptr || data->op_id == OpId::eDefault) {
-            std::cout << "I am a " << this->getName() << " and I do NOTHING!" << std::endl;
-        } else {
-            // CRTP magic: call derived implementation
-            auto derived_data = convertData(data); // nullptr if inconsistent cast
-            Debug::logAssert(
-                derived_data != nullptr,
-                "Should get {}, but got {}",
-                typeid(DataType).name(),
-                data->getDataType()
-            );
-            static_cast<Derived*>(this)->implOperate(derived_data);
-        }
-    }
+#pragma region VirtualFunc
+    void run(std::shared_ptr<DeviceDataBase> data = nullptr) override;
 
     /// @brief Simulate time elapsing and update Device accordingly.
     /// It supports partial update for Device with relevant data.
@@ -106,35 +112,41 @@ public:
         return static_cast<Derived*>(this)->implTimeTravel(duration_sec);
     }
 
-    /// @brief Simulate how the device behave when function incorrectly
-    /// @param mf_id Identify which operations to be performed, because there can be many.
-    void malfunction(std::shared_ptr<DeviceDataBase> data = nullptr) override {
-        if (data == nullptr || data->mf_id == DeviceDataBase::MfId::eNormal) {
-            std::cerr << std::format("Philosophical question from {}: ", getName())
-                      << "If I run normally while malfunction, do I run correctly or incorrectly?"
-                      << std::endl;
-        } else {
-            // CRTP magic: call derived implementation
-            auto derived_data = convertData(data); // nullptr if inconsistent cast
-            Debug::logAssert(
-                derived_data != nullptr,
-                "Should get {}, but got {}",
-                typeid(DataType).name(),
-                data->getDataType()
-            );
-            static_cast<Derived*>(this)->implMalfunction(derived_data);
-        }
-    }
-
     virtual ~Device() { s_total_count--; }
+#pragma endregion
 
 protected:
     std::string m_name = "NULL";
     bool m_on = false;
+    // const function can modify log
+    mutable std::vector<LogEntry> m_log_system;
     // increment only
     inline static uint32_t s_global_id = 0;
     // increment & decrement
     inline static uint32_t s_total_count = 0;
+
+    inline void questionNotNormal() const {
+        addMalfunctionLog(
+            "Philosophical question: If I run normally while malfunction, do I run correctly?",
+            DeviceDataBase::MfId::eNormal
+        );
+    }
+
+    inline void closeLowBattery() {
+        addMalfunctionLog("Low battery, closed!", DeviceDataBase::MfId::eLowBattery);
+        m_on = false;
+    }
+
+    inline bool processCommonMf(DeviceDataBase::MfId mf_id) {
+        if (mf_id == DeviceDataBase::MfId::eNormal) {
+            questionNotNormal();
+            return true;
+        } else if (mf_id == DeviceDataBase::MfId::eLowBattery) {
+            closeLowBattery();
+            return true;
+        }
+        return false;
+    }
 
     /// @brief A universal malfunction corresponding to MfId::eHacked,
     /// replace the first `len` char of `m_name` with `newName`.
@@ -144,13 +156,13 @@ protected:
     void hackName(std::string newName, size_t len) {
         // Hack the name from the beginning
         m_name.replace(0, len, newName);
-        std::cerr << "I got hacked and become " << getName() << std::endl;
+        addMalfunctionLog(
+            std::format("I got hacked and become {}.", getName()), DeviceDataBase::MfId::eHacked
+        );
     }
 
     /// @brief Type-safe data conversion
-    std::shared_ptr<DataType> convertData(std::shared_ptr<DeviceDataBase> data) {
-        return std::dynamic_pointer_cast<DataType>(data);
-    }
+    std::shared_ptr<DataType> convertData(std::shared_ptr<DeviceDataBase> data) const;
 };
 
 typedef std::vector<std::shared_ptr<DeviceDataBase>> DataList;

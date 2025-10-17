@@ -66,6 +66,7 @@
         "thread": "cpp",
         "span": "cpp",
         "chrono": "cpp",
-        "iterator": "cpp"
+        "iterator": "cpp",
+        "tuple": "cpp"
     }
 }

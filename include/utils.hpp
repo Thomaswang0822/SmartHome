@@ -1,6 +1,9 @@
 #pragma once
 
+#include "magic_enum/magic_enum.hpp"
+
 #include <cassert>
+#include <chrono>
 #include <format>
 
 namespace Debug {
@@ -15,6 +18,20 @@ inline void logAssert(bool condition, std::format_string<Args...> fmt, Args&&...
     }
 }
 
+/// @brief `enum class` can contains invalid values, thus we need to throw in the
+/// `default` branch of a switch on an enum.
+/// @tparam EnumType one of the enum type defined in device_data.hpp
+template <typename EnumType>
+class DeviceOperationException : public std::runtime_error {
+public:
+    DeviceOperationException(const EnumType enum_value)
+        : std::runtime_error(
+              std::format(
+                  "Invalid value {} for enum {}", magic_enum::enum_name(enum_value),
+                  typeid(enum_value).name()
+              )
+          ) {}
+};
 } // namespace Debug
 
 /// @brief Timer a reusable time check that does NOT simulate time elapsing.

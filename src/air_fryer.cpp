@@ -6,16 +6,18 @@ void AirFryer::implOperate(std::shared_ptr<AirFryerData> data) {
     if (data == nullptr || !m_on)
         return;
 
-    switch (data->op_id) {
-    case OpId::eAirFryerCook:
+    auto op_id = getOpId(data);
+    switch (op_id) {
+        using enum AirFryerData::OpId;
+    case eAirFryerCook:
         cook(data);
         break;
-    case OpId::eAirFryerClean:
+    case eAirFryerClean:
         cleanup(data);
         break;
     default:
-        Device::operate();
-        data->logOpId();
+        // shouldn't reach here
+        throw Debug::DeviceOperationException<AirFryerData::OpId>(op_id);
         break;
     }
 }
@@ -24,20 +26,23 @@ void AirFryer::implMalfunction(std::shared_ptr<AirFryerData> data) {
     if (data == nullptr || !m_on)
         return;
 
-    switch (data->mf_id) {
-    case DeviceDataBase::MfId::eLowBattery:
-        m_on = false;
-        break;
-    case DeviceDataBase::MfId::eHacked:
+    auto mf_id = getMfId(data);
+    if (processCommonMf(mf_id))
+        return;
+
+    switch (mf_id) {
+        using enum DemoDeviceData::MfId;
+    case eHacked:
         // replace "Air" with "Evil"
         hackName("Evil", 3);
         break;
-    case DeviceDataBase::MfId::eBroken:
-        std::cerr << getName() << " is buring! BOOM! Buy a new one!" << std::endl;
+    case eBroken:
+        addMalfunctionLog(std::format("{} is buring! BOOM! Buy a new one!\n", getName()), mf_id);
+        m_on = false;
         break;
     default:
-        // eNormal
-        Device::malfunction();
+        // shouldn't reach here, because 2 common mf will be handled by processCommonMf
+        throw Debug::DeviceOperationException<DeviceDataBase::MfId>(mf_id);
         break;
     }
 }
@@ -49,6 +54,7 @@ uint32_t AirFryer::implTimeTravel(const uint32_t duration_sec) {
 }
 
 void AirFryer::cook(std::shared_ptr<AirFryerData> data) {
+    auto op_id = AirFryerData::OpId::eAirFryerCook;
     // caller Operate() should filter out nullptr input
     Debug::logAssert(data != nullptr, "caller Operate() should filter out nullptr input");
     Debug::logAssert(
@@ -56,29 +62,38 @@ void AirFryer::cook(std::shared_ptr<AirFryerData> data) {
     );
 
     if (data->food_volume > k_total_volume) {
-        data->log_str = std::format(
-            "Food volume {} bigger than total volume {}. Buy a bigger one!",
-            data->food_volume,
-            k_total_volume
+        addOperationLog(
+            std::format(
+                "Food volume {} bigger than total volume {}. Buy a bigger one!",
+                data->food_volume,
+                k_total_volume
+            ),
+            op_id
         );
         data->success = false;
+        return;
     } else if (data->food_volume > m_volume) {
-        data->log_str = std::format(
-            "Food volume {} bigger than current volume {}. Wait for more space.",
-            data->food_volume,
-            m_volume
+        addOperationLog(
+            std::format(
+                "Food volume {} bigger than current volume {}. Wait for more space.",
+                data->food_volume,
+                m_volume
+            ),
+            op_id
         );
         data->success = false;
+        return;
     }
+    // else
+    addOperationLog("Cooking starts.", op_id);
     m_volume -= data->food_volume;
     std::this_thread::sleep_for(std::chrono::seconds(data->time_sec));
-    data->log_str =
-        std::format("completes cooking after {} seconds at {}", data->time_sec, getCurrentTime());
+    addOperationLog(std::format("Complete cooking after {} seconds.", data->time_sec), op_id);
     data->success = true;
 }
 
 void AirFryer::cleanup(std::shared_ptr<AirFryerData> data) {
     m_volume = k_total_volume;
     data->success = true;
-    data->log_str = std::format("cleanup done at {}", getCurrentTime());
+    addOperationLog("Cleanup done.", AirFryerData::OpId::eAirFryerClean);
 }

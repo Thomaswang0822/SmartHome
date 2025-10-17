@@ -20,3 +20,8 @@ Below is a list of modern C++ features I've learned and played with:
 - std::ranges::transform
 - std::views::enumerate
 - ranges::views::enumerate from range-v3
+- std::format
+- std::dynamic_pointer_cast
+- std::variant
+- magic::enum
+- CRTP (Curiously Recurring Template Pattern)

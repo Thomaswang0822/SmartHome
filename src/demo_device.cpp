@@ -6,43 +6,47 @@
 #include <format>
 #include <iostream>
 
-void DemoDevice::implOperate(std::shared_ptr<DeviceDataBase> data) {
+void DemoDevice::implOperate(std::shared_ptr<DemoDeviceData> data) {
     if (data == nullptr || !m_on)
         return;
 
-    switch (data->op_id) {
-    case OpId::eHello:
-        data->log_str = hello();
+    auto op_id = getOpId(data);
+    switch (op_id) {
+        using enum DemoDeviceData::OpId;
+    case eHello:
+        addOperationLog(hello(), op_id);
         break;
-    case OpId::eSing:
-        data->log_str = sing();
+    case eSing:
+        addOperationLog(sing(), op_id);
         break;
     default:
-        // OpId::eDefault
-        Device::operate();
+        // shouldn't reach here
+        throw Debug::DeviceOperationException<DemoDeviceData::OpId>(op_id);
         break;
     }
     return;
 }
 
-void DemoDevice::implMalfunction(std::shared_ptr<DeviceDataBase> data) {
+void DemoDevice::implMalfunction(std::shared_ptr<DemoDeviceData> data) {
     if (data == nullptr || !m_on)
         return;
 
-    switch (data->mf_id) {
-    case DeviceDataBase::MfId::eLowBattery:
-        m_on = false;
-        break;
-    case DeviceDataBase::MfId::eHacked:
+    auto mf_id = getMfId(data);
+    if (processCommonMf(mf_id))
+        return;
+
+    switch (mf_id) {
+        using enum DemoDeviceData::MfId;
+    case eHacked:
         // replace "Demo" with "Evil"
         hackName("Evil", 4);
         break;
-    case DeviceDataBase::MfId::eBroken:
-        std::cerr << getName() << " is broken!" << std::endl;
+    case eBroken:
+        addMalfunctionLog(std::format("{} is broken!", getName()), mf_id);
         break;
     default:
-        // eNormal
-        Device::malfunction();
+        // shouldn't reach here
+        throw Debug::DeviceOperationException<DeviceDataBase::MfId>(mf_id);
         break;
     }
 }

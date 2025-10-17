@@ -6,20 +6,22 @@ void WasherDryer::implOperate(std::shared_ptr<WasherDryerData> data) {
     if (data == nullptr || !m_on)
         return;
 
-    switch (data->op_id) {
-    case OpId::eWashDryerCombo:
+    auto op_id = getOpId(data);
+    switch (op_id) {
+        using enum WasherDryerData::OpId;
+    case eWashDryerCombo:
         // auto call Dry() after Wash() finishes
         wash(data);
         break;
-    case OpId::eWashDryerWashOnly:
+    case eWashDryerWashOnly:
         wash(data);
         break;
-    case OpId::eWashDryerDryOnly:
+    case eWashDryerDryOnly:
         dry(data);
         break;
     default:
-        Device::operate();
-        data->logOpId();
+        // shouldn't reach here
+        throw Debug::DeviceOperationException<WasherDryerData::OpId>(op_id);
         break;
     }
 }
@@ -28,22 +30,26 @@ void WasherDryer::implMalfunction(std::shared_ptr<WasherDryerData> data) {
     if (data == nullptr || !m_on)
         return;
 
-    switch (data->mf_id) {
-    case WasherDryerData::MfId::eLowBattery:
-        m_on = false;
-        break;
-    case WasherDryerData::MfId::eHacked: {
+    auto mf_id = getMfId(data);
+    if (processCommonMf(mf_id))
+        return;
+
+    switch (mf_id) {
+        using enum DemoDeviceData::MfId;
+    case eHacked: {
         // replace "WasherDryer" with LuffyAce?
-        std::string hack_name = data->log_str == "" ? "LuffyAce" : data->log_str;
+        std::string hack_name = data->hack_name == "" ? "LuffyAce" : data->hack_name;
         hackName(hack_name, 11);
         break;
     }
-    case WasherDryerData::MfId::eBroken:
-        std::cerr << getName() << " are leaking! See if Super Mario can help!" << std::endl;
+    case eBroken:
+        addMalfunctionLog(
+            std::format("{} are leaking! See if Super Mario can help!", getName()), mf_id
+        );
         break;
     default:
-        // eNormal
-        Device::malfunction();
+        // shouldn't reach here
+        throw Debug::DeviceOperationException<DeviceDataBase::MfId>(mf_id);
         break;
     }
 }
@@ -99,13 +105,17 @@ uint32_t WasherDryer::implTimeTravel(const uint32_t duration_sec) {
 }
 
 void WasherDryer::wash(std::shared_ptr<WasherDryerData> data) {
+    auto op_id = getOpId(data);
     Debug::logAssert(data != nullptr, "caller Operate() should filter out nullptr input");
 
     if (data->cloth_volume > k_total_volume) {
-        data->log_str = std::format(
-            "You put too much cloth ({}) more than total volume {}.\n",
-            data->cloth_volume,
-            k_total_volume
+        addOperationLog(
+            std::format(
+                "You put too much cloth ({}) more than total volume {}.\n",
+                data->cloth_volume,
+                k_total_volume
+            ),
+            op_id
         );
 
         data->success = false;
@@ -123,16 +133,21 @@ void WasherDryer::wash(std::shared_ptr<WasherDryerData> data) {
     Debug::logAssert(!m_wash_bin.empty(), "m_wash_bin should not be empty");
     Debug::logAssert(!m_wash_timer.running, "m_wash_timer should not be running");
     m_wash_timer.begin(data->wash_sec);
+    addOperationLog("Wash job starts.", op_id);
 }
 
 void WasherDryer::dry(std::shared_ptr<WasherDryerData> data) {
+    auto op_id = getOpId(data);
     Debug::logAssert(data != nullptr, "caller Operate() should filter out nullptr input");
 
     if (data->cloth_volume > k_total_volume) {
-        data->log_str = std::format(
-            "You put too much cloth ({}) more than total volume {}.\n",
-            data->cloth_volume,
-            k_total_volume
+        addOperationLog(
+            std::format(
+                "You put too much cloth ({}) more than total volume {}.\n",
+                data->cloth_volume,
+                k_total_volume
+            ),
+            op_id
         );
 
         data->success = false;
@@ -150,6 +165,7 @@ void WasherDryer::dry(std::shared_ptr<WasherDryerData> data) {
     Debug::logAssert(!m_dry_bin.empty(), "m_dry_bin should not be empty");
     Debug::logAssert(!m_dry_timer.running, "m_dry_timer should not be running");
     m_dry_timer.begin(data->dry_sec);
+    addOperationLog("Dry job starts.", op_id);
 }
 
 void WasherDryer::performNext(bool is_wash) {
@@ -163,23 +179,28 @@ void WasherDryer::performNext(bool is_wash) {
     }
     // mark success and pop from bin
     auto prev_data = bin.front();
+    auto op_id = getOpId(prev_data);
     bin.pop_front();
     prev_data->success = true;
-    prev_data->log_str += std::format(
-        "{} job completes after {} seconds, at {:%T}. ",
-        is_wash ? "Wash" : "Dry",
-        is_wash ? prev_data->wash_sec : prev_data->dry_sec,
-        // not curr time, but time when job finished
-        timer.t_start + timer.t_total_sec
+    addOperationLog(
+        std::format(
+            "{} job completes after {} seconds, at {:%T}. ",
+            is_wash ? "Wash" : "Dry",
+            is_wash ? prev_data->wash_sec : prev_data->dry_sec,
+            // not curr time, but time when job finished
+            timer.t_start + timer.t_total_sec
+        ),
+        op_id
     );
 
     // Check if this is a wash job in a wash-dry combo
-    if (is_wash && prev_data->op_id == OpId::eWashDryerCombo) {
+    if (is_wash && op_id == WasherDryerData::OpId::eWashDryerCombo) {
         // wash success but not combo
         prev_data->success = false;
         // submit to dryer.
-        prev_data->log_str +=
-            std::format("Begin dry in the combo, also take {} seconds; ", prev_data->dry_sec);
+        addOperationLog(
+            std::format("Begin dry in the combo, also take {} seconds; ", prev_data->dry_sec), op_id
+        );
         dry(prev_data);
     }
 }

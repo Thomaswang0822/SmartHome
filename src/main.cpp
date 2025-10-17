@@ -1,6 +1,7 @@
 #include "air_fryer.hpp"
 #include "demo_device.hpp"
 #include "device.hpp"
+#include "real_ac.hpp"
 #include "smart_manager.hpp"
 #include "washer_dryer.hpp"
 
@@ -36,7 +37,7 @@ static void populateTravelTimes(std::vector<uint32_t>& vec) {
     vec.push_back(0);
     vec.push_back(0);
 
-    vec.push_back(10);
+    vec.push_back(20);
 
     // For RealAC, 0 is sim to end.
     vec.push_back(0);
@@ -53,15 +54,24 @@ static void populateData(NestedDeviceData& vec) {
     {
         std::vector<std::shared_ptr<DeviceDataBase>> vdata;
         {
-            auto data = std::make_shared<DeviceDataBase>();
-            data->op_id = OpId::eHello;
-            data->mf_id = DeviceDataBase::MfId::eBroken;
+            auto data = std::make_shared<DemoDeviceData>();
+            data->id = DemoDeviceData::OpId::eHello;
             vdata.push_back(data);
         }
         {
-            auto data = std::make_shared<DeviceDataBase>();
-            data->op_id = OpId::eSing;
-            data->mf_id = DeviceDataBase::MfId::eNormal;
+            auto data = std::make_shared<DemoDeviceData>();
+            data->id = DemoDeviceData::OpId::eSing;
+            vdata.push_back(data);
+        }
+        // malfunction
+        {
+            auto data = std::make_shared<DemoDeviceData>();
+            data->id = DeviceDataBase::MfId::eNormal;
+            vdata.push_back(data);
+        }
+        {
+            auto data = std::make_shared<DemoDeviceData>();
+            data->id = DeviceDataBase::MfId::eBroken;
             vdata.push_back(data);
         }
         vec.push_back(vdata);
@@ -72,16 +82,20 @@ static void populateData(NestedDeviceData& vec) {
         std::vector<std::shared_ptr<DeviceDataBase>> vdata;
         {
             auto data = std::make_shared<AirFryerData>();
-            data->op_id = OpId::eAirFryerCook;
-            data->mf_id = DeviceDataBase::MfId::eNormal;
+            data->id = AirFryerData::OpId::eAirFryerCook;
             data->time_sec = 5;
             data->food_volume = 2.0f;
             vdata.push_back(data);
         }
         {
             auto data = std::make_shared<AirFryerData>();
-            data->op_id = OpId::eAirFryerClean;
-            data->mf_id = DeviceDataBase::MfId::eLowBattery;
+            data->id = AirFryerData::OpId::eAirFryerClean;
+            vdata.push_back(data);
+        }
+        // malfunction
+        {
+            auto data = std::make_shared<AirFryerData>();
+            data->id = DeviceDataBase::MfId::eLowBattery;
             vdata.push_back(data);
         }
         vec.push_back(vdata);
@@ -92,27 +106,29 @@ static void populateData(NestedDeviceData& vec) {
         std::vector<std::shared_ptr<DeviceDataBase>> vdata;
         {
             auto data = std::make_shared<WasherDryerData>();
-            data->op_id = OpId::eWashDryerDryOnly;
-            data->mf_id = DeviceDataBase::MfId::eNormal;
+            data->id = WasherDryerData::OpId::eWashDryerDryOnly;
             data->dry_sec = 3;
             data->cloth_volume = 8.0f;
             vdata.push_back(data);
         }
         {
             auto data = std::make_shared<WasherDryerData>();
-            data->op_id = OpId::eWashDryerWashOnly;
-            data->mf_id = DeviceDataBase::MfId::eNormal;
+            data->id = WasherDryerData::OpId::eWashDryerWashOnly;
             data->wash_sec = 5;
             data->cloth_volume = 9.0f;
             vdata.push_back(data);
         }
         {
             auto data = std::make_shared<WasherDryerData>();
-            data->op_id = OpId::eWashDryerCombo;
-            data->mf_id = DeviceDataBase::MfId::eHacked;
+            data->id = WasherDryerData::OpId::eWashDryerCombo;
             data->wash_sec = 7;
-            data->dry_sec = 11;
+            data->dry_sec = 4;
             data->cloth_volume = 10.0f;
+            vdata.push_back(data);
+        }
+        {
+            auto data = std::make_shared<WasherDryerData>();
+            data->id = DeviceDataBase::MfId::eHacked;
             vdata.push_back(data);
         }
         vec.push_back(vdata);
@@ -125,8 +141,7 @@ static void populateData(NestedDeviceData& vec) {
         {
             // 2000w in low is 500w, +3 degree needs 10 mins
             auto data = std::make_shared<RealACData>();
-            data->op_id = OpId::eRealAcOpenTillDeg;
-            data->mf_id = DeviceDataBase::MfId::eNormal;
+            data->id = RealACData::OpId::eRealAcOpenTillDeg;
             // data->duration_sec = 10;
             data->target_temp = ROOM_TEMP + 3.0f;
             data->is_heat = true;
@@ -136,12 +151,16 @@ static void populateData(NestedDeviceData& vec) {
         {
             // 2000w in mid is 1000w, for 5 mins, expect -= 3 degree
             auto data = std::make_shared<RealACData>();
-            data->op_id = OpId::eRealAcOpenForMins;
-            data->mf_id = DeviceDataBase::MfId::eNormal;
+            data->id = RealACData::OpId::eRealAcOpenForMins;
             data->duration_sec = 5;
             // data->target_temp = ROOM_TEMP + 3.0f;
             data->is_heat = false;
             data->mode = RealACData::Mode::eMid;
+            vdata.push_back(data);
+        }
+        {
+            auto data = std::make_shared<RealACData>();
+            data->id = DeviceDataBase::MfId::eHacked;
             vdata.push_back(data);
         }
         vec.push_back(vdata);
@@ -175,7 +194,7 @@ static void demo() {
         range_ids,                       // input
         std::back_inserter(vec_devices), // output, intially empty
         [](uint32_t id) -> std::shared_ptr<DeviceInterface> {
-            if (id < static_cast<uint32_t>(OpId::COUNT))
+            if (id % 2 == 0)
                 return std::make_shared<AirFryer>();
             else
                 return std::make_shared<DemoDevice>("DemoDevice_" + std::to_string(id));
@@ -191,29 +210,27 @@ static void demo() {
     std::cout << "std::views::enumerate() NOT supported. We will use range-v3 instead.\n";
 #endif
 
-    constexpr auto OP_COUNT = static_cast<uint32_t>(OpId::COUNT);
-    constexpr auto MF_COUNT = static_cast<uint32_t>(DeviceDataBase::MfId::COUNT);
-    auto data = std::make_shared<DeviceDataBase>();
+    constexpr size_t AF_OP_COUNT = magic_enum::enum_count<AirFryerData::OpId>();
+    constexpr size_t DEMO_OP_COUNT = magic_enum::enum_count<DemoDeviceData::OpId>();
+    constexpr size_t MF_COUNT = magic_enum::enum_count<DeviceDataBase::MfId>();
+    auto data = std::make_shared<DemoDeviceData>();
     auto af_data = std::make_shared<AirFryerData>();
+
     for (const auto& [index, device] : vec_devices | enum_view::enumerate) {
         std::cout << std::string(20, '=')
                   << std::format("{} at {}", device->getName(), device->getCurrentTime())
                   << std::string(20, '=') << std::endl;
 
         if (auto af = std::dynamic_pointer_cast<AirFryer>(device)) {
-            af_data->op_id = static_cast<OpId>(index % OP_COUNT);
-            af_data->mf_id = static_cast<DeviceDataBase::MfId>(index % MF_COUNT);
+            af_data->id = static_cast<AirFryerData::OpId>(index % AF_OP_COUNT);
             af_data->time_sec = static_cast<int>(index); // seconds
             af_data->food_volume = static_cast<float>(index) + 0.1f;
 
-            device->operate(af_data);
-            device->malfunction(af_data);
+            device->run(af_data);
         } else {
-            data->op_id = static_cast<OpId>(index % OP_COUNT);
-            data->mf_id = static_cast<DeviceDataBase::MfId>(index % MF_COUNT);
+            data->id = static_cast<DeviceDataBase::MfId>(index % MF_COUNT);
 
-            device->operate(data);
-            device->malfunction(data);
+            device->run(data);
         }
         std::cout << std::string(20, '=') << std::endl;
     }
@@ -237,8 +254,7 @@ static void demo() {
                   << std::string(20, '=') << std::endl;
         // Operate
         for (const auto d : vdata) {
-            device->operate(d);
-            device->malfunction(d);
+            device->run(d);
         }
         device->timeTravel(ttime);
         /// Here we only demo how pointer cast works. The best practice is NOT to:
@@ -249,9 +265,7 @@ static void demo() {
         }
 
         // Then Log
-        for (const auto d : vdata) {
-            device->logOperation(d);
-        }
+        device->printLog();
     }
 }
 

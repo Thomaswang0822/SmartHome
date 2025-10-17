@@ -55,26 +55,20 @@ void SmartManager::operate() {
 
     for (auto& device_name : m_device_names) {
         auto& device = m_device_map[device_name];
-        std::cout << std::string(20, '=')
-                  << std::format("{} at {}", device->getName(), device->getCurrentTime())
-                  << std::string(20, '=') << std::endl;
 
         if (!m_data_map.contains(device_name)) {
-            // no operation for this device, see Device::logOperation()
+            // no operation for this device, see Device::printLog()
             m_data_map[device_name].push_back(nullptr);
             continue;
         }
 
         for (auto& data : m_data_map[device_name]) {
-            device->operate(data);
-            device->malfunction(data);
+            device->run(data);
         }
 
         device->timeTravel(m_ttime_map[device_name]);
 
-        for (const auto& data : m_data_map[device_name]) {
-            device->logOperation(data);
-        }
+        device->printLog();
     }
 
     return;
